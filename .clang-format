@@ -47,6 +47,6 @@ SpacesInContainerLiterals: 'false'
 SpacesInParentheses: 'false'
 TabWidth: '4'
 UseTab: Never
-AllowShortCompoundRequirementOnASingleLine: 'true'
+# AllowShortCompoundRequirementOnASingleLine: 'true'
 BreakAfterAttributes : 'Always'
 ColumnLimit: 120

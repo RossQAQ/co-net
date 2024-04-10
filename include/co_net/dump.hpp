@@ -48,8 +48,9 @@ public:
     template <typename T>
         requires std::is_convertible_v<T, std::string>
     Dump& operator,(T&& msg) {
+        std::string msg_str = msg;
         std::string no_transfer;
-        for (char ch : msg) {
+        for (char ch : msg_str) {
             switch (ch) {
                 case '\n':
                     no_transfer.append("\\n");

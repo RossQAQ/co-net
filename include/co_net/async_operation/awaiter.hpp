@@ -48,4 +48,6 @@ struct FinalTaskAwaiter {
     constexpr void await_resume() const noexcept {}
 };
 
+struct SleepAwaiter {};
+
 }  // namespace net::async::awaiters

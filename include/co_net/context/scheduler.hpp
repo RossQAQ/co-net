@@ -20,12 +20,6 @@
 
 namespace net::context {
 
-using tools::debug::Dump;
-
-/**
- * @brief 协程任务调度器，隶属于 io_context
- *
- */
 class Scheduler : public tools::Noncopyable {
 public:
     Scheduler() = default;
@@ -58,6 +52,8 @@ public:
 
 private:
     std::queue<std::coroutine_handle<>> awaited_;
+
+    std::queue<std::coroutine_handle<>> timed_;
 };
 
 }  // namespace net::context

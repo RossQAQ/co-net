@@ -20,6 +20,7 @@ Task<int> read_some() {
 
 Task<void> fake_accept() {
     Dump(), "Accepting a Connection...";
+    auto x = co_await read_some();
     co_return;
 }
 
@@ -35,15 +36,15 @@ Task<void> process() {
 
 Task<void> fake_server() {
     Dump(), std::string("Hello From async main\n\n\n");
-    for (size_t i{}; i < 3; ++i) {
+    for (size_t i{}; i < 1; ++i) {
+        Dump(), "before accept";
         co_await fake_accept();
-        std::this_thread::sleep_for(5s);
-        co_await process();
+        Dump(), "after accept";
+        // std::this_thread::sleep_for(5s);
+        // co_await process();
     }
 }
 
 int main() {
-    net::context::Context ctx{};
-
-    return ctx.run(fake_server());
+    return net::context::block_on(fake_server());
 }

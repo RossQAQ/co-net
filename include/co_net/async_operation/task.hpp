@@ -19,9 +19,6 @@
 #include "co_net/async_operation/awaiter.hpp"
 #include "co_net/async_operation/promise_type.hpp"
 #include "co_net/async_operation/result.hpp"
-#include "co_net/dump.hpp"
-
-using tools::debug::Dump;
 
 namespace net::async {
 
@@ -66,7 +63,7 @@ struct TaskPromise<void> : public BasicPromise {
 };
 
 template <typename T = void, typename Promise = TaskPromise<T>>
-class Task {
+class [[nodiscard]] Task {
 public:
     using promise_type = Promise;
 
@@ -114,11 +111,16 @@ public:
     }
 
     [[nodiscard]]
-    auto operator co_await() const noexcept {
+    auto
+    operator co_await() const noexcept {
         return TaskAwaier{ handle_ };
     }
 
     [[nodiscard]] operator std::coroutine_handle<promise_type>() const noexcept { return handle_; }
+
+    [[nodiscard]] bool done() const noexcept { return handle_.done(); }
+
+    void resume() { handle_.resume(); }
 
 private:
     std::coroutine_handle<promise_type> handle_{ nullptr };
