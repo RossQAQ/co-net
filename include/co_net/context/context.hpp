@@ -13,7 +13,7 @@
 
 #include <thread>
 
-#include "co_net/async_operation/task.hpp"
+#include "co_net/async/task.hpp"
 #include "co_net/config.hpp"
 #include "co_net/context/scheduler.hpp"
 #include "co_net/context/task_loop.hpp"
@@ -54,11 +54,11 @@ public:
             task_loop_.run();
             auto submiited = uring_.submit_all();
             Dump(), "Uring submiited: ", submiited;
-            uring_.wait_at_least_one_cqe();
+            uring_.wait_one_cqe();
 
             // for test:
             task_loop_.run();
-            std::terminate();
+            Dump(), "You can Exit Now";
         }
     }
 

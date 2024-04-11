@@ -16,9 +16,9 @@
 #include <stdexcept>
 #include <utility>
 
-#include "co_net/async_operation/awaiter.hpp"
-#include "co_net/async_operation/promise_type.hpp"
-#include "co_net/async_operation/result.hpp"
+#include "co_net/async/awaiter.hpp"
+#include "co_net/async/promise_type.hpp"
+#include "co_net/async/result.hpp"
 
 namespace net::async {
 
@@ -118,7 +118,10 @@ public:
 
     [[nodiscard]] operator std::coroutine_handle<promise_type>() const noexcept { return handle_; }
 
-    [[nodiscard]] bool done() const noexcept { return handle_.done(); }
+    [[nodiscard]]
+    bool done() const noexcept {
+        return handle_.done();
+    }
 
     void resume() { handle_.resume(); }
 

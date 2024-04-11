@@ -9,8 +9,8 @@
  *
  */
 
-#include "co_net/async_operation/awaiter.hpp"
-#include "co_net/async_operation/task.hpp"
+#include "co_net/async/awaiter.hpp"
+#include "co_net/async/task.hpp"
 
 namespace net::async {
 

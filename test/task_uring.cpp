@@ -1,9 +1,9 @@
 #include <chrono>
 
-#include "co_net/async_operation/task.hpp"
+#include "co_net/async/task.hpp"
 #include "co_net/context/context.hpp"
 #include "co_net/dump.hpp"
-#include "co_net/io/registrator/prep_timeout.hpp"
+#include "co_net/io/prep/prep_timeout.hpp"
 #include "co_net/timer/timer.hpp"
 
 using namespace std::chrono_literals;
@@ -31,11 +31,4 @@ Task<void> fake_server() {
 
 int main() {
     return net::context::block_on(fake_server());
-
-    let res;
-    {
-        let x = 1;
-        res = &x;
-    }
-    println!("{res}")
 }

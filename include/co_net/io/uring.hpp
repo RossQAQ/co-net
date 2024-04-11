@@ -15,10 +15,10 @@
 
 #include <cstring>
 
-#include "co_net/async_operation/task.hpp"
+#include "co_net/async/task.hpp"
 #include "co_net/config.hpp"
 #include "co_net/context/task_loop.hpp"
-#include "co_net/io/registrator/caller_coro.hpp"
+#include "co_net/io/prep/caller_coro.hpp"
 #include "co_net/util/noncopyable.hpp"
 
 namespace net::io {
@@ -55,17 +55,29 @@ public:
         return io_uring_get_sqe(&ring_);
     }
 
-    void wait_at_least_one_cqe() noexcept {
+    void wait_one_cqe() noexcept {
         io_uring_cqe* cqe{ nullptr };
-        Dump(), "Waiting CQE";
         io_uring_wait_cqe(&ring_, &cqe);
-        Dump(), "CQE Getted";
         auto* caller = reinterpret_cast<CallerCoro*>(cqe->user_data);
+        caller->cqe_res_ = cqe->res;
+        caller->cqe_flags_ = cqe->flags;
         peer_task_loop_->enqueue(caller->handle_);
-        io_uring_cqe_seen(&ring_, cqe);
+        seen(cqe);
     }
 
-    void batch_process(size_t num) noexcept {}
+    void run() noexcept {
+        io_uring_cqe* cqe{ nullptr };
+        unsigned head{};
+        unsigned i{};
+        io_uring_for_each_cqe(&ring_, head, cqe) {
+            i++;
+            auto* caller = reinterpret_cast<CallerCoro*>(cqe->user_data);
+            caller->cqe_res_ = cqe->res;
+            caller->cqe_flags_ = cqe->flags;
+            peer_task_loop_->enqueue(caller->handle_);
+        }
+        consume(i);
+    }
 
     void seen(io_uring_cqe* cqe) noexcept { io_uring_cqe_seen(&ring_, cqe); }
 

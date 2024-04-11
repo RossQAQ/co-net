@@ -24,4 +24,6 @@ inline constexpr size_t URING_MAIN_SQES = 128;
 
 inline constexpr size_t URING_WOKERS_SQES = 256;
 
+inline constexpr size_t URING_PEEK_CQES_ONCE = 128;
+
 }  // namespace config

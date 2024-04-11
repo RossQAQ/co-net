@@ -2,8 +2,10 @@
 
 #include <liburing.h>
 
-#include "co_net/async_operation/task.hpp"
-#include "co_net/io/registrator/caller_coro.hpp"
+#include <tuple>
+
+#include "co_net/async/task.hpp"
+#include "co_net/io/prep/caller_coro.hpp"
 #include "co_net/io/uring.hpp"
 
 namespace net::io {
@@ -13,7 +15,7 @@ struct UringAwaiter {
 public:
     template <typename F>
         requires std::is_invocable_v<F, io_uring_sqe*>
-    explicit UringAwaiter(Uring& ring, F&& func) : ring_(ring) {
+    explicit UringAwaiter(io::Uring& ring, F&& func) {
         sqe_ = ring.get_sqe();
         func(sqe_);
         io_uring_sqe_set_data(sqe_, &caller_);
@@ -35,9 +37,9 @@ public:
         return;
     }
 
-protected:
-    Uring& ring_;
+    std::tuple<int, int> await_resume() noexcept { return std::make_tuple(caller_.cqe_res_, caller_.cqe_flags_); }
 
+protected:
     io_uring_sqe* sqe_{ nullptr };
 
     CallerCoro caller_{ nullptr };

@@ -16,7 +16,7 @@
 #include <stdexcept>
 #include <utility>
 
-#include "co_net/async_operation/awaiter.hpp"
+#include "co_net/async/awaiter.hpp"
 #include "co_net/dump.hpp"
 
 using tools::debug::Dump;
