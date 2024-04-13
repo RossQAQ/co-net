@@ -1,18 +1,8 @@
-/**
- * @file uring.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief 提供 io_uring 的抽象
- * @version 0.1
- * @date 2024-03-29
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #pragma once
 
 #include <liburing.h>
 
+#include <array>
 #include <cstring>
 
 #include "co_net/async/task.hpp"
@@ -38,17 +28,16 @@ public:
         } else {
             ret = io_uring_queue_init(config::URING_WOKERS_SQES, &ring_, 0);
         }
-        if (ret) {
+        if (ret) [[unlikely]] {
             throw std::runtime_error("io_uring Init failed");
         }
+
+        io_uring_register_ring_fd(&ring_);
     }
 
     ~Uring() { io_uring_queue_exit(&ring_); }
 
-    [[nodiscard]]
-    int submit_all() noexcept {
-        return io_uring_submit(&ring_);
-    }
+    int submit_all() noexcept { return io_uring_submit(&ring_); }
 
     [[nodiscard]]
     io_uring_sqe* get_sqe() noexcept {
@@ -58,25 +47,41 @@ public:
     void wait_one_cqe() noexcept {
         io_uring_cqe* cqe{ nullptr };
         io_uring_wait_cqe(&ring_, &cqe);
-        auto* caller = reinterpret_cast<CallerCoro*>(cqe->user_data);
-        caller->cqe_res_ = cqe->res;
-        caller->cqe_flags_ = cqe->flags;
-        peer_task_loop_->enqueue(caller->handle_);
+        check_current_task(cqe);
         seen(cqe);
     }
 
-    void run() noexcept {
+    void process_all() noexcept {
         io_uring_cqe* cqe{ nullptr };
         unsigned head{};
         unsigned i{};
         io_uring_for_each_cqe(&ring_, head, cqe) {
             i++;
-            auto* caller = reinterpret_cast<CallerCoro*>(cqe->user_data);
-            caller->cqe_res_ = cqe->res;
-            caller->cqe_flags_ = cqe->flags;
-            peer_task_loop_->enqueue(caller->handle_);
+            check_current_task(cqe);
         }
         consume(i);
+    }
+
+    void process_batch() noexcept {
+        std::array<io_uring_cqe*, config::URING_PEEK_CQES_BATCH> cqes;
+        unsigned completed = io_uring_peek_batch_cqe(&ring_, cqes.data(), config::URING_PEEK_CQES_BATCH);
+        for (size_t i{}; i < completed; ++i) { check_current_task(cqes[i]); }
+        consume(completed);
+    }
+
+    [[nodiscard]]
+    int fd() const noexcept {
+        return ring_.ring_fd;
+    }
+
+private:
+    void check_current_task(io_uring_cqe* cqe) {
+        auto* caller = reinterpret_cast<CallerCoro*>(cqe->user_data);
+        caller->cqe_res_ = cqe->res;
+        caller->cqe_flags_ = cqe->flags;
+        if (!caller->handle_.done()) {
+            peer_task_loop_->enqueue(caller->handle_);
+        }
     }
 
     void seen(io_uring_cqe* cqe) noexcept { io_uring_cqe_seen(&ring_, cqe); }

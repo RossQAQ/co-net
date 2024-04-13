@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.24.0)
 project(co-net VERSION 0.1.0 LANGUAGES C CXX)
 
 add_executable(co-net src/main.cpp)
@@ -19,3 +19,4 @@ endif()
 link_libraries(uring)
 
 add_subdirectory(test)
+add_subdirectory(example)

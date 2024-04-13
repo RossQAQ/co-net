@@ -16,15 +16,14 @@ public:
     TimeoutAwaiter(io::Uring& ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {}
 };
 
-inline net::async::Task<void> uring_prep_timer_once(__kernel_timespec ts,
-                                                    int count = 1,
-                                                    int flags = IORING_TIMEOUT_REALTIME |
-                                                                IORING_TIMEOUT_ETIME_SUCCESS) {
+inline net::async::Task<void> async_sleep_for(__kernel_timespec ts,
+                                              int count = 1,
+                                              int flags = IORING_TIMEOUT_REALTIME | IORING_TIMEOUT_ETIME_SUCCESS) {
     auto [res, flag] = co_await TimeoutAwaiter{ net::context::loop.get_uring_loop(), [&](io_uring_sqe* sqe) {
                                                    io_uring_prep_timeout(sqe, &ts, count, flags);
                                                } };
 
-    if (res != -ETIME) {
+    if (res != -ETIME) [[unlikely]] {
         throw std::runtime_error("io_uring preparing timeout error");
     }
 }

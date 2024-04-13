@@ -1,14 +1,3 @@
-/**
- * @file result.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief Task 协程的返回结果
- * @version 0.1
- * @date 2024-04-05
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #pragma once
 
 #include <coroutine>
@@ -25,7 +14,8 @@ public:
 
     ~Result() noexcept {}
 
-    [[nodiscard]] T move_out_result() {
+    [[nodiscard]]
+    T move_out_result() {
         T ret(std::move(value_));
         std::destroy_at(std::addressof(value_));
         return ret;

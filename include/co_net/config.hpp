@@ -1,13 +1,3 @@
-/**
- * @file config.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief io_context 的 Config 文件，在构建 io_context 时需要
- * @version 0.1
- * @date 2024-04-05
- *
- * @copyright Copyright (c) 2024
- *
- */
 #pragma once
 
 #include <thread>
@@ -22,8 +12,17 @@ inline constexpr size_t URING_MAIN_CQES = 1024;
 
 inline constexpr size_t URING_MAIN_SQES = 128;
 
-inline constexpr size_t URING_WOKERS_SQES = 256;
+inline constexpr size_t URING_WOKERS_SQES = 512;
 
-inline constexpr size_t URING_PEEK_CQES_ONCE = 128;
+inline constexpr size_t URING_PEEK_CQES_BATCH = 256;
+
+inline constexpr bool URING_USE_MULTISHOT_ACCEPT = false;
+
+// inline constexpr bool URING_USE_DIRECT_FD_AS_SOCKET = true;
+
+// inline constexpr size_t URING_DIRECT_FD_TABLE_SIZE = 32768;
+
+// 8mb
+inline constexpr size_t PROVIDED_BUFFER_INITIAL_SIZE = 8'388'608;
 
 }  // namespace config

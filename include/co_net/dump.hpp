@@ -46,7 +46,7 @@ public:
     }
 
     template <typename T>
-        requires std::is_convertible_v<T, std::string>
+        requires(std::is_convertible_v<T, std::string> && !std::is_same_v<T, std::string>)
     Dump& operator,(T&& msg) {
         std::string msg_str = msg;
         std::string no_transfer;

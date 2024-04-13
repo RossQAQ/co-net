@@ -1,14 +1,3 @@
-/**
- * @file promise_type.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief 协程的 promise_type 实现
- * @version 0.1
- * @date 2024-03-31
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #pragma once
 
 #include <coroutine>

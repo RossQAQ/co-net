@@ -23,6 +23,11 @@ public:
         return task_queue_.empty();
     }
 
+    [[nodiscard]]
+    size_t size() const noexcept {
+        return task_queue_.size();
+    }
+
 private:
     std::deque<std::coroutine_handle<>> task_queue_;
 };

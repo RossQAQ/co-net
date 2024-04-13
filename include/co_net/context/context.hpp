@@ -1,21 +1,9 @@
-/**
- * @file context.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief io_context
- * @version 0.1
- * @date 2024-04-03
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #pragma once
 
 #include <thread>
 
 #include "co_net/async/task.hpp"
 #include "co_net/config.hpp"
-#include "co_net/context/scheduler.hpp"
 #include "co_net/context/task_loop.hpp"
 #include "co_net/context/thread_pool.hpp"
 #include "co_net/dump.hpp"
@@ -52,13 +40,8 @@ public:
     void run() {
         for (;;) {
             task_loop_.run();
-            auto submiited = uring_.submit_all();
-            Dump(), "Uring submiited: ", submiited;
+            uring_.submit_all();
             uring_.wait_one_cqe();
-
-            // for test:
-            task_loop_.run();
-            Dump(), "You can Exit Now";
         }
     }
 
@@ -70,8 +53,9 @@ private:
 
 inline thread_local EventLoop loop{ net::io::UringType::Major };
 
-inline void co_spawn(std::coroutine_handle<> task) {
-    loop.submit_task(task);
+inline void co_spawn(async::Task<void>&& task) {
+    auto handle = task.take();
+    loop.submit_task(handle);
 }
 
 [[nodiscard]]

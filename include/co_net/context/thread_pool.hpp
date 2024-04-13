@@ -1,14 +1,3 @@
-/**
- * @file thread_loop.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief 工作线程池。
- * @version 0.1
- * @date 2024-04-03
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #pragma once
 
 #include <thread>

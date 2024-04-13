@@ -1,14 +1,3 @@
-/**
- * @file task.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief Task 协程基础实现
- * @version 0.1
- * @date 2024-03-31
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #pragma once
 
 #include <coroutine>
@@ -101,7 +90,7 @@ public:
     }
 
     [[nodiscard]]
-    std::coroutine_handle<> handle() const noexcept {
+    std::coroutine_handle<promise_type> handle() const noexcept {
         return handle_;
     }
 

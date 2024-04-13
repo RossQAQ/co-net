@@ -1,14 +1,3 @@
-/**
- * @file awaiter.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief 协程的具有特殊操作的 Awaiters
- * @version 0.1
- * @date 2024-03-31
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #pragma once
 
 #include <concepts>

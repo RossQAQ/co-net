@@ -1,14 +1,3 @@
-/**
- * @file when_all.hpp
- * @author Roseveknif (rossqaq@outlook.com)
- * @brief 协程实现 when_all 功能
- * @version 0.1
- * @date 2024-04-05
- *
- * @copyright Copyright (c) 2024
- *
- */
-
 #include "co_net/async/awaiter.hpp"
 #include "co_net/async/task.hpp"
 
