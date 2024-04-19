@@ -6,7 +6,7 @@
 
 namespace net::io {
 
-struct CallerCoro {
+struct CompletionToken {
     std::coroutine_handle<> handle_{ nullptr };
     int32_t cqe_res_{ -ENOSYS };
     int32_t cqe_flags_;

@@ -5,7 +5,7 @@
 #include <tuple>
 
 #include "co_net/async/task.hpp"
-#include "co_net/io/prep/caller_coro.hpp"
+#include "co_net/io/prep/completion_token.hpp"
 #include "co_net/io/uring.hpp"
 
 namespace net::io {
@@ -15,8 +15,8 @@ struct UringAwaiter {
 public:
     template <typename F>
         requires std::is_invocable_v<F, io_uring_sqe*>
-    explicit UringAwaiter(io::Uring& ring, F&& func) {
-        sqe_ = ring.get_sqe();
+    explicit UringAwaiter(io::Uring* ring, F&& func) {
+        sqe_ = ring->get_sqe();
         func(sqe_);
         io_uring_sqe_set_data(sqe_, &caller_);
     }
@@ -42,7 +42,7 @@ public:
 protected:
     io_uring_sqe* sqe_{ nullptr };
 
-    CallerCoro caller_{ nullptr };
+    CompletionToken caller_{ nullptr };
 };
 
 // inline net::async::Task<int> uring_prep_socket_direct(io::Uring& ring,

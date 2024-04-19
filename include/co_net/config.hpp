@@ -2,7 +2,11 @@
 
 #include <thread>
 
+#include "co_net/timer/timer.hpp"
+
 namespace config {
+
+using namespace net::time_literals;
 
 using thread_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency)>;
 
@@ -17,6 +21,8 @@ inline constexpr size_t URING_WOKERS_SQES = 512;
 inline constexpr size_t URING_PEEK_CQES_BATCH = 256;
 
 inline constexpr bool URING_USE_MULTISHOT_ACCEPT = false;
+
+inline constexpr __kernel_timespec MINOR_URING_WAIT_CQE_TIMEOUT = 3s;
 
 // inline constexpr bool URING_USE_DIRECT_FD_AS_SOCKET = true;
 

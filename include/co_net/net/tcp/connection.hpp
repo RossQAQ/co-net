@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <vector>
 
 #include "co_net/async/task.hpp"
 #include "co_net/net/socket.hpp"
@@ -8,9 +9,16 @@
 
 namespace net::tcp {
 
-class Connection : public ::tools::Noncopyable {
+class TcpConnection : public ::tools::Noncopyable {
 public:
-    explicit Connection(::net::Socket sock) : socket_(std::move(sock)) {}
+    explicit TcpConnection(::net::Socket sock) : socket_(std::move(sock)) {}
+
+    TcpConnection(TcpConnection&& rhs) : socket_(std::move(rhs.socket_)) {}
+
+    TcpConnection& operator=(TcpConnection&& rhs) {
+        socket_ = std::move(rhs.socket_);
+        return *this;
+    }
 
     ::net::async::Task<ssize_t> read(std::span<char> buf);
 
@@ -22,6 +30,10 @@ public:
 
 private:
     ::net::Socket socket_;
+
+    std::vector<char> buffer_;
 };
+
+// ::net::aysnc::Task<TcpConnection> connect() {}
 
 }  // namespace net::tcp

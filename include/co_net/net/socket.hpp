@@ -73,6 +73,11 @@ public:
         return addr_.len();
     }
 
+    [[nodiscard]]
+    bool is_valid() const noexcept {
+        return fd_ != -1;
+    }
+
 private:
     int fd_{ -1 };
     net::ip::SocketAddr addr_;

@@ -18,11 +18,7 @@ public:
         state = ture;
     }
 
-private:
-    static bool state;
 };
-
-bool MultishotAcceptAwaiter::state = false;
 
 // ! todo
 inline net::async::Task<int> prep_multishot_accept(int socket, int flags) {

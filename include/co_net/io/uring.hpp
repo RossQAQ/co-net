@@ -8,7 +8,7 @@
 #include "co_net/async/task.hpp"
 #include "co_net/config.hpp"
 #include "co_net/context/task_loop.hpp"
-#include "co_net/io/prep/caller_coro.hpp"
+#include "co_net/io/prep/completion_token.hpp"
 #include "co_net/util/noncopyable.hpp"
 
 namespace net::io {
@@ -44,11 +44,15 @@ public:
         return io_uring_get_sqe(&ring_);
     }
 
-    void wait_one_cqe() noexcept {
+    void wait_cqe_arrival() noexcept {
         io_uring_cqe* cqe{ nullptr };
         io_uring_wait_cqe(&ring_, &cqe);
-        check_current_task(cqe);
-        seen(cqe);
+    }
+
+    [[nodiscard]]
+    int wait_cqe_arrival_in(__kernel_timespec in) noexcept {
+        io_uring_cqe* cqe{ nullptr };
+        return io_uring_wait_cqe_timeout(&ring_, &cqe, &in);
     }
 
     void process_all() noexcept {
@@ -76,7 +80,7 @@ public:
 
 private:
     void check_current_task(io_uring_cqe* cqe) {
-        auto* caller = reinterpret_cast<CallerCoro*>(cqe->user_data);
+        auto* caller = reinterpret_cast<CompletionToken*>(cqe->user_data);
         caller->cqe_res_ = cqe->res;
         caller->cqe_flags_ = cqe->flags;
         if (!caller->handle_.done()) {
