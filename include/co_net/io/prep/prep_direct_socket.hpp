@@ -1,5 +1,7 @@
 #pragma once
 
+// ! broken
+
 #include <liburing.h>
 
 #include "co_net/context/context.hpp"
@@ -13,12 +15,12 @@ public:
 
     template <typename F>
         requires std::is_invocable_v<F, io_uring_sqe*>
-    DirectSocketAwaiter(io::Uring& ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {}
+    DirectSocketAwaiter(io::Uring* ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {}
 };
 
 inline net::async::Task<int> alloc_direct_socket(int domain, int type, int protocol, int flags) {
     auto [res, flag] =
-        co_await DirectSocketAwaiter{ net::context::loop.get_uring_loop(), [&](io_uring_sqe* sqe) {
+        co_await DirectSocketAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
                                          io_uring_prep_socket_direct_alloc(sqe, domain, type, protocol, flags);
                                      } };
 

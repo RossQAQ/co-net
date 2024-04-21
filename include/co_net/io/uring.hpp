@@ -7,8 +7,10 @@
 
 #include "co_net/async/task.hpp"
 #include "co_net/config.hpp"
+#include "co_net/context/context.hpp"
 #include "co_net/context/task_loop.hpp"
 #include "co_net/io/prep/completion_token.hpp"
+#include "co_net/io/uring_msg.hpp"
 #include "co_net/util/noncopyable.hpp"
 
 namespace net::io {
@@ -80,11 +82,18 @@ public:
 
 private:
     void check_current_task(io_uring_cqe* cqe) {
-        auto* caller = reinterpret_cast<CompletionToken*>(cqe->user_data);
-        caller->cqe_res_ = cqe->res;
-        caller->cqe_flags_ = cqe->flags;
-        if (!caller->handle_.done()) {
-            peer_task_loop_->enqueue(caller->handle_);
+        if (cqe->res == 0x5e2d) [[unlikely]] {
+            auto msg = reinterpret_cast<::net::io::msg::RingMsg*>(cqe->user_data);
+            auto task = msg->take_out();
+            peer_task_loop_->enqueue(task);
+            delete msg;
+        } else [[likely]] {
+            auto* caller = reinterpret_cast<CompletionToken*>(cqe->user_data);
+            caller->cqe_res_ = cqe->res;
+            caller->cqe_flags_ = cqe->flags;
+            if (!caller->handle_.done()) {
+                peer_task_loop_->enqueue(caller->handle_);
+            }
         }
     }
 

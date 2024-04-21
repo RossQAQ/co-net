@@ -20,10 +20,13 @@ using thread_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency
 
 class Workers : public tools::Noncopyable {
 public:
-    explicit Workers(thread_t how_many) {
+    explicit Workers(thread_t how_many, int main_uring_fd, std::latch& init_latch) {
+        uring_id_.push_back(main_uring_fd);
+
         if (how_many == 0) {
             how_many = std::thread::hardware_concurrency();
         }
+
         for (size_t i{}; i < how_many; ++i) {
             threads_.emplace_back([&](std::stop_token st) {
                 using namespace net::time_literals;
@@ -39,6 +42,7 @@ public:
                 {
                     std::lock_guard lg(mtx_);
                     uring_id_.push_back(worker_ring.fd());
+                    init_latch.count_down();
                 }
 
                 for (;;) {
@@ -62,7 +66,7 @@ public:
         for (std::jthread& th : threads_) { th.request_stop(); }
     }
 
-    const std::vector<int> get_uring_ids() const noexcept { return uring_id_; }
+    const int get_uring_id_by_index(int idx) const { return uring_id_.at(idx); }
 
 private:
     std::vector<std::jthread> threads_;

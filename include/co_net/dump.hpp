@@ -63,13 +63,12 @@ public:
             if (ch == 0)
                 break;
         }
-
         formatted_ = std::format("{}\033[1;{}m{}\033[0m\n", formatted_, static_cast<int>(color_), no_transfer);
         return *this;
     }
 
 private:
-    void print() { std::cout << formatted_ << '\n'; }
+    void print() { std::cout << "Thread " << std::this_thread::get_id() << ", " << formatted_ << '\n'; }
 
 private:
     Color color_;
