@@ -23,14 +23,9 @@
  * IORING_CQE_F_NOTIFY
  */
 
-// #define IORING_CQE_F_QUIT ~0U
-
 namespace net::io {
 
 class Uring : public tools::Noncopyable {
-private:
-    enum class UringStatus { Pending, Stopped };
-
 public:
     Uring(net::context::TaskLoop* peer_task_loop) : peer_task_loop_(peer_task_loop) {
         int ret{};
@@ -39,6 +34,7 @@ public:
 
         params.cq_entries = config::URING_MAIN_CQES;
         params.flags |= IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CLAMP;
+        params.flags |= IORING_SETUP_COOP_TASKRUN;
         params.flags |= IORING_SETUP_CQSIZE;
 
         ret = io_uring_queue_init_params(config::URING_MAIN_SQES, &ring_, &params);
@@ -57,6 +53,7 @@ public:
 
         params.wq_fd = main_uring_fd;
         params.flags |= IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CLAMP;
+        params.flags |= IORING_SETUP_COOP_TASKRUN;
         params.flags |= IORING_SETUP_ATTACH_WQ;
 
         ret = io_uring_queue_init_params(config::URING_WOKERS_SQES, &ring_, &params);
@@ -101,10 +98,10 @@ public:
     void process_batch() noexcept {
         std::array<io_uring_cqe*, config::URING_PEEK_CQES_BATCH> cqes;
         unsigned completed = io_uring_peek_batch_cqe(&ring_, cqes.data(), config::URING_PEEK_CQES_BATCH);
-        for (size_t i{}; i < completed && status_ == UringStatus::Pending; ++i) { handle_request(cqes[i]); }
+        for (size_t i{}; i < completed && !stopped_; ++i) { handle_request(cqes[i]); }
         consume(completed);
 
-        if (status_ == UringStatus::Stopped) [[unlikely]] {
+        if (stopped_) [[unlikely]] {
             consume_all();
 
             auto* cancel_sqe = get_sqe();
@@ -134,26 +131,27 @@ private:
     void handle_request(io_uring_cqe* cqe) {
         CompletionToken* token = reinterpret_cast<CompletionToken*>(cqe->user_data);
 
-        switch (token->op_) {
-            case Op::CloseDirect:
-                Dump(), "close direct";
-                delete token;
-                break;
+        if (token) [[likely]] {
+            switch (token->op_) {
+                case Op::SyncCloseDirect:
+                    delete token;
+                    break;
 
-            case Op::Quit:
-                status_ = UringStatus::Stopped;
-                delete token;
-                break;
+                case Op::Quit:
+                    stopped_ = true;
+                    delete token;
+                    break;
 
-            case Op::CancelAny:
-                delete token;
-                break;
+                case Op::CancelAny:
+                    delete token;
+                    break;
 
-            default:
-                token->cqe_res_ = cqe->res;
-                token->cqe_flags_ = cqe->flags;
-                peer_task_loop_->enqueue(token->handle_);
-                break;
+                default:
+                    token->cqe_res_ = cqe->res;
+                    token->cqe_flags_ = cqe->flags;
+                    token->chain_task_->set_pending(false);
+                    break;
+            }
         }
     }
 
@@ -179,10 +177,6 @@ private:
             token->op_ = Op::Quit;
             io_uring_prep_msg_ring(sqe, fd, 0, reinterpret_cast<unsigned long long>(token), 0);
         }
-
-        notify_self_quit();
-
-        submit_all();
     }
 
     void notify_self_quit() noexcept {
@@ -191,13 +185,12 @@ private:
         CompletionToken* token = new CompletionToken{};
         token->op_ = Op::Quit;
         io_uring_prep_msg_ring(sqe, ring_.ring_fd, 0, reinterpret_cast<unsigned long long>(token), 0);
-        submit_all();
     }
 
 private:
     io_uring ring_;
 
-    UringStatus status_{ UringStatus::Pending };
+    bool stopped_{ false };
 
     ::net::context::TaskLoop* peer_task_loop_;
 };

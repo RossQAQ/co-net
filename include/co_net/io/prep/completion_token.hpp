@@ -4,6 +4,8 @@
 
 #include <coroutine>
 
+#include "co_net/async/scheduled_task.hpp"
+
 namespace net::io {
 
 enum class Op {
@@ -19,7 +21,8 @@ enum class Op {
     MultishotReceive,
     RegisterRingBuffer,
     Shutdown,
-    CloseDirect,
+    SyncCloseDirect,
+    AsyncCloseDirect,
     Close,
     CancelAny,
     Quit,
@@ -28,7 +31,7 @@ enum class Op {
 
 struct CompletionToken {
     Op op_{ Op::Unknown };
-    std::coroutine_handle<> handle_{ nullptr };
+    net::async::ScheduledTask* chain_task_{ nullptr };
     int32_t cqe_res_{ -ENOSYS };
     int32_t cqe_flags_;
 };

@@ -122,21 +122,20 @@ public:
 
     ~DirectSocket() {
         if (fd_ > -1) {
-            Dump();
             auto* sqe = this_ctx::local_uring_loop->get_sqe();
             io_uring_prep_close_direct(sqe, fd_);
             ::net::io::CompletionToken* token = new ::net::io::CompletionToken{};
-            token->op_ = ::net::io::Op::CloseDirect;
-            io_uring_sqe_set_data(sqe, &token);
+            token->op_ = ::net::io::Op::SyncCloseDirect;
+            io_uring_sqe_set_data(sqe, static_cast<void*>(token));
             this_ctx::local_uring_loop->submit_all();
         }
         fd_ = -1;
     }
 
-    ::net::async::Task<void> release_direct(int sock) {
-        co_await ::net::io::operation::prep_close_socket_direct(sock);
-        fd_ = -1;
-    }
+    // ::net::async::Task<void> release_direct(int sock) {
+    //     co_await ::net::io::operation::prep_close_socket_direct(sock);
+    //     fd_ = -1;
+    // }
 
     [[nodiscard]]
     const int fd() const noexcept {

@@ -27,13 +27,7 @@ public:
     const int listen_fd() const noexcept { return socket_.fd(); }
 
     ::net::async::Task<TcpConnection> accept() {
-        int client_sock{ -1 };
-
-        if constexpr (config::URING_USE_DIRECT_FD_AS_SOCKET) {
-            client_sock = co_await ::net::io::operation::prep_accept_direct(listen_fd());
-        } else {
-            client_sock = co_await ::net::io::operation::prep_accept(listen_fd(), 0);
-        }
+        int client_sock = co_await ::net::io::operation::prep_accept_direct(listen_fd());
 
         if (socket_.is_ipv4()) {
             co_return TcpConnection{ ::net::DirectSocket{ client_sock, true } };

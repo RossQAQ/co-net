@@ -15,7 +15,7 @@ public:
     Entity() {}
     Entity(const Entity&) {}
     Entity(Entity&&) {}
-    ~Entity() { Dump(); }
+    ~Entity() {}
 };
 
 class Conn {
@@ -24,23 +24,26 @@ public:
 
     Conn(Conn&&) = default;
 
-    ~Conn() { Dump(), "Sha bi~"; }
+    ~Conn() { Dump(); }
 
 private:
     Entity e_;
 };
 
 Task<void> echo(Conn conn) {
+    Dump(), "this is echo";
     co_return;
 }
 
 Task<void> server() {
     Entity e;
-    net::context::co_spawn(echo(std::move(e)));
+    Dump();
+    co_await echo(std::move(e));
     co_return;
 }
 
 int main() {
-    Dump(), sizeof(Task<>);
-    return net::context::block_on(server());
+    int ret = net::context::block_on(server());
+    Dump();
+    return ret;
 }

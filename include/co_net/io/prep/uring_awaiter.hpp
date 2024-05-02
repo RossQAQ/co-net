@@ -4,6 +4,7 @@
 
 #include <tuple>
 
+#include "co_net/async/scheduled_task.hpp"
 #include "co_net/async/task.hpp"
 #include "co_net/io/prep/completion_token.hpp"
 #include "co_net/io/uring.hpp"
@@ -32,8 +33,11 @@ public:
 public:
     bool await_ready() const noexcept { return false; }
 
-    void await_suspend(std::coroutine_handle<> caller) {
-        token_.handle_ = caller;
+    template <typename Promise>
+    void await_suspend(std::coroutine_handle<Promise> caller) {
+        caller.promise().this_chain_task_->set_continuation(caller);
+        token_.chain_task_ = caller.promise().this_chain_task_;
+        token_.chain_task_->set_pending(true);
         return;
     }
 

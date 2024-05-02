@@ -12,6 +12,8 @@ using tools::debug::Dump;
 
 namespace net::async {
 
+class ScheduledTask;
+
 struct BasicPromise {
     auto initial_suspend() const noexcept { return std::suspend_always{}; }
 
@@ -19,9 +21,13 @@ struct BasicPromise {
 
     void set_caller(std::coroutine_handle<> caller) { caller_ = caller; }
 
+    void set_chain_root(ScheduledTask* task) { this_chain_task_ = task; }
+
     std::coroutine_handle<> caller_{ nullptr };
 
     std::exception_ptr exp_{ nullptr };
+
+    ScheduledTask* this_chain_task_{ nullptr };
 };
 
 }  // namespace net::async

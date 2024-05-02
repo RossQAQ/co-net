@@ -18,17 +18,13 @@
 namespace net::context {
 
 class SystemLoop : tools::Noncopyable {
-private:
-    enum SystemLoopStatus { Working, Stopped };
-
 public:
     SystemLoop() :
         main_task_queue_(),
         main_uring_(&main_task_queue_),
         io_buffer_(main_uring_.get()),
         init_latch_(config::WORKERS ? config::WORKERS : std::thread::hardware_concurrency()),
-        workers_(config::WORKERS, main_uring_.fd(), init_latch_),
-        status_(SystemLoopStatus::Working) {
+        workers_(config::WORKERS, main_uring_.fd(), init_latch_) {
         init_latch_.wait();
         this_ctx::local_task_queue = &main_task_queue_;
         this_ctx::local_uring_loop = &main_uring_;
@@ -45,16 +41,18 @@ public:
 
     ~SystemLoop() { terminate(); }
 
-    void submit_task(std::coroutine_handle<> task) { main_task_queue_.enqueue(task); }
-
     void run() {
         using namespace net::time_literals;
 
         int ret{};
-        while (status_ == SystemLoopStatus::Working || ret != -ETIME) {
+        while (!stopped_) {
             main_task_queue_.run();
 
             main_uring_.submit_all();
+
+            if (main_task_queue_.empty()) {
+                break;
+            }
 
             ret = main_uring_.wait_cqe_arrival_for(50_ms);
 
@@ -70,10 +68,16 @@ public:
     }
 
     void terminate() {
-        if (status_ == SystemLoopStatus::Working) {
-            status_ = SystemLoopStatus::Stopped;
+        using namespace net::time_literals;
+
+        if (!stopped_) {
+            stopped_ = true;
             workers_.stop();
             main_uring_.notify_workers_to_stop(workers_.get_worker_ids());
+            main_uring_.notify_self_quit();
+            main_uring_.submit_all();
+            main_uring_.wait_cqe_arrival_for(3_s);
+            main_uring_.process_all();
         }
     }
 
@@ -88,7 +92,7 @@ private:
 
     std::latch init_latch_;
 
-    SystemLoopStatus status_;
+    bool stopped_{ false };
 };
 
 void sig_terminate(int signum) {
@@ -106,7 +110,7 @@ inline int block_on(async::Task<void>&& task) {
     when_sigint.sa_handler = &sig_terminate;
     sigaction(SIGINT, &when_sigint, nullptr);
 
-    loop.submit_task(task.handle());
+    this_ctx::local_task_queue->enqueue(std::move(task));
     loop.run();
     Dump(), "Terminante";
     return 0;
@@ -136,8 +140,7 @@ inline async::Task<int> parallel_spawn(async::Task<void>&& task) {
 }
 
 inline void co_spawn(async::Task<void>&& task) {
-    auto handle = task.take();
-    this_ctx::local_task_queue->enqueue(handle);
+    this_ctx::local_task_queue->enqueue(std::move(task));
 }
 
 }  // namespace net::context

@@ -17,7 +17,7 @@ namespace net::tcp {
 
 class TcpConnection : public ::tools::Noncopyable {
 public:
-    explicit TcpConnection(::net::DirectSocket sock) : socket_(std::move(sock)) { Dump(); }
+    explicit TcpConnection(::net::DirectSocket sock) : socket_(std::move(sock)) {}
 
     TcpConnection(TcpConnection&& rhs) : socket_(std::move(rhs.socket_)) {}
 

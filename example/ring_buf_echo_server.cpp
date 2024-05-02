@@ -13,6 +13,7 @@ using namespace net::async;
 
 Task<void> echo(TcpConnection conn) {
     using namespace net::time_literals;
+    Dump(), conn.fd();
     for (;;) {
         auto nread = co_await conn.ring_buf_receive();
         if (nread == 0) {
@@ -22,7 +23,6 @@ Task<void> echo(TcpConnection conn) {
         auto msg = conn.move_out_received();
         auto nwrite = co_await conn.write_all(msg);
     }
-    Dump(), "Should close client";
 }
 
 Task<void> server() {

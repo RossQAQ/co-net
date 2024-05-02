@@ -11,21 +11,26 @@ using namespace net;
 using namespace net::tcp;
 using namespace net::async;
 
-Task<void> say_hello() {
-    Dump(), "Hey";
+Task<> world() {
+    Dump(), " World";
     co_return;
 }
 
-Task<void> server() {
-    net::context::co_spawn(say_hello());
-    net::context::co_spawn(say_hello());
-    net::context::co_spawn(say_hello());
-    net::context::co_spawn(say_hello());
-    net::context::co_spawn(say_hello());
-    Dump(), this_ctx::local_task_queue->size();
+Task<> hello() {
+    Dump(), "Hello";
+    co_await world();
+    co_return;
+}
+
+Task<> spawn_coroutines() {
+    net::context::co_spawn(hello());
+    net::context::co_spawn(hello());
+    net::context::co_spawn(hello());
+    net::context::co_spawn(hello());
+    net::context::co_spawn(hello());
     co_return;
 }
 
 int main() {
-    return net::context::block_on(server());
+    return net::context::block_on(spawn_coroutines());
 }

@@ -57,12 +57,14 @@ public:
     using promise_type = Promise;
 
     struct TaskAwaier {
-        std::coroutine_handle<promise_type> callee_;
+        std::coroutine_handle<promise_type> callee_{ nullptr };
 
         auto await_ready() const noexcept { return false; }
 
-        std::coroutine_handle<promise_type> await_suspend(std::coroutine_handle<> caller) const noexcept {
+        template <typename CallerPromise>
+        std::coroutine_handle<promise_type> await_suspend(std::coroutine_handle<CallerPromise> caller) const noexcept {
             callee_.promise().set_caller(caller);
+            callee_.promise().set_chain_root(caller.promise().this_chain_task_);
             return callee_;
         }
 
@@ -81,7 +83,10 @@ public:
 
     Task(Task&& rhs) noexcept : handle_(rhs.handle_) { rhs.handle_ = nullptr; }
 
-    Task& operator=(Task&& rhs) noexcept { std::swap(handle_, rhs.handle_); }
+    Task& operator=(Task&& rhs) noexcept {
+        std::swap(handle_, rhs.handle_);
+        return *this;
+    }
 
     ~Task() {
         if (handle_) {
@@ -113,6 +118,8 @@ public:
     }
 
     void resume() { handle_.resume(); }
+
+    void set_chian_task_root(ScheduledTask* root) { handle_.promise().set_chain_root(root); }
 
 private:
     std::coroutine_handle<promise_type> handle_{ nullptr };

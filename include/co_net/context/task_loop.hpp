@@ -1,7 +1,9 @@
 #pragma once
 
-#include <deque>
+#include <algorithm>
+#include <list>
 
+#include "co_net/async/scheduled_task.hpp"
 #include "co_net/async/task.hpp"
 #include "co_net/util/noncopyable.hpp"
 
@@ -9,27 +11,18 @@ namespace net::context {
 
 class TaskLoop : public tools::Noncopyable {
 public:
-    ~TaskLoop() {
-        while (!task_queue_.empty()) {
-            auto handle = task_queue_.front();
-            task_queue_.pop_front();
-            handle.destroy();
-        }
-    }
+    ~TaskLoop() = default;
 
     void run() {
-        while (!task_queue_.empty()) {
-            auto task = task_queue_.front();
-            task_queue_.pop_front();
-            if (task.done()) {
-                task.destroy();
-            } else {
-                task.resume();
-            }
-        }
+        for (auto& task : task_queue_) { task.resume(); }
+
+        task_queue_.erase(std::remove_if(task_queue_.begin(),
+                                         task_queue_.end(),
+                                         [](net::async::ScheduledTask& task) { return !task.valid(); }),
+                          task_queue_.end());
     }
 
-    void enqueue(std::coroutine_handle<> coro) { task_queue_.push_back(coro); }
+    void enqueue(net::async::Task<>&& task) { task_queue_.emplace_back(std::move(task)); }
 
     [[nodiscard]]
     bool empty() const noexcept {
@@ -42,8 +35,6 @@ public:
     }
 
 private:
-    std::deque<std::coroutine_handle<>> task_queue_;
-
-    std::deque<::net::async::Task<void>> test_queue_;
+    std::list<net::async::ScheduledTask> task_queue_;
 };
 }  // namespace net::context
