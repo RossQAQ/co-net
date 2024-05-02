@@ -5,6 +5,10 @@
 #include <format>
 #include <iostream>
 
+#include "co_net/dump.hpp"
+
+using tools::debug::Dump;
+
 namespace net::async::awaiters {
 
 template <typename AwaiterType>
@@ -36,7 +40,5 @@ struct FinalTaskAwaiter {
 
     constexpr void await_resume() const noexcept {}
 };
-
-struct SleepAwaiter {};
 
 }  // namespace net::async::awaiters

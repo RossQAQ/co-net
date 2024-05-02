@@ -13,13 +13,15 @@ public:
 
     template <typename F>
         requires std::is_invocable_v<F, io_uring_sqe*>
-    SocketAwaiter(io::Uring* ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {}
+    SocketAwaiter(io::Uring* ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {
+        token_.op_ = Op::Socket;
+    }
 };
 
 inline net::async::Task<int> prep_normal_socket(int domain, int type, int protocol, int flags) {
-    auto [res, flag] = co_await SocketAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
-                                                  io_uring_prep_socket(sqe, domain, type, protocol, flags);
-                                              } };
+    auto [op, res, flag] = co_await SocketAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
+                                                      io_uring_prep_socket(sqe, domain, type, protocol, flags);
+                                                  } };
 
     if (res == -ENFILE) [[unlikely]] {
         throw std::runtime_error("io_uring prep normal socket failed.");

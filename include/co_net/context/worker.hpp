@@ -20,39 +20,39 @@ using thread_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency
 
 class Workers : public tools::Noncopyable {
 public:
-    explicit Workers(thread_t how_many, int main_uring_fd, std::latch& init_latch) {
-        uring_id_.push_back(main_uring_fd);
-
+    explicit Workers(thread_t how_many, int main_ring_fd, std::latch& init_latch) : main_ring_fd_(main_ring_fd) {
         if (how_many == 0) {
             how_many = std::thread::hardware_concurrency();
         }
 
         for (size_t i{}; i < how_many; ++i) {
             threads_.emplace_back([&](std::stop_token st) {
-                using namespace net::time_literals;
-
                 net::context::TaskLoop task_loop;
 
-                net::io::Uring worker_ring{ net::io::UringType::Minor, &task_loop };
+                net::io::Uring worker_ring{ main_ring_fd_, &task_loop };
+
+                net::io::RingBuffer worker_buffer{ worker_ring.get() };
 
                 this_ctx::local_task_queue = &task_loop;
 
                 this_ctx::local_uring_loop = &worker_ring;
 
+                this_ctx::local_ring_buffer = &worker_buffer;
+
                 {
                     std::lock_guard lg(mtx_);
-                    uring_id_.push_back(worker_ring.fd());
+                    uring_fds_.push_back(worker_ring.fd());
                     init_latch.count_down();
                 }
 
                 for (;;) {
                     task_loop.run();
 
-                    auto ret = worker_ring.wait_cqe_arrival_in(::config::MINOR_URING_WAIT_CQE_TIMEOUT);
+                    worker_ring.submit_all();
 
-                    if (ret != -ETIME && ret >= 0) {
-                        worker_ring.process_batch();
-                    }
+                    worker_ring.wait_cqe_arrival();
+
+                    worker_ring.process_batch();
 
                     if (st.stop_requested()) {
                         return;
@@ -62,16 +62,22 @@ public:
         }
     }
 
-    ~Workers() {
-        for (std::jthread& th : threads_) { th.request_stop(); }
+    ~Workers() { stop(); }
+
+    void stop() {
+        for (auto& th : threads_) { th.request_stop(); }
     }
 
-    const int get_uring_id_by_index(int idx) const { return uring_id_.at(idx); }
+    const int get_uring_id_by_index(int idx) const { return uring_fds_.at(idx); }
+
+    std::span<int> get_worker_ids() noexcept { return uring_fds_; }
 
 private:
     std::vector<std::jthread> threads_;
 
-    std::vector<int> uring_id_;
+    std::vector<int> uring_fds_;
+
+    int main_ring_fd_;
 
     std::mutex mtx_;
 };

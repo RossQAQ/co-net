@@ -18,7 +18,7 @@ public:
     explicit UringAwaiter(io::Uring* ring, F&& func) {
         sqe_ = ring->get_sqe();
         func(sqe_);
-        io_uring_sqe_set_data(sqe_, &caller_);
+        io_uring_sqe_set_data(sqe_, &token_);
     }
 
     UringAwaiter(const UringAwaiter&) = delete;
@@ -33,29 +33,16 @@ public:
     bool await_ready() const noexcept { return false; }
 
     void await_suspend(std::coroutine_handle<> caller) {
-        caller_.handle_ = caller;
+        token_.handle_ = caller;
         return;
     }
 
-    std::tuple<int, int> await_resume() noexcept { return std::make_tuple(caller_.cqe_res_, caller_.cqe_flags_); }
+    AsyncResult await_resume() noexcept { return { token_.op_, token_.cqe_res_, token_.cqe_flags_ }; }
 
 protected:
     io_uring_sqe* sqe_{ nullptr };
 
-    CompletionToken caller_{ nullptr };
+    CompletionToken token_{};
 };
-
-// inline net::async::Task<int> uring_prep_socket_direct(io::Uring& ring,
-//                                                       int domain,
-//                                                       int type,
-//                                                       int protocol,
-//                                                       unsigned int flags) {
-//     co_return co_await net::io::UringAwaiter{
-//         ring,
-//         [&](io_uring_sqe* sqe) {
-//             io_uring_prep_socket_direct(sqe, domain, type, protocol, IORING_FILE_INDEX_ALLOC, flags);
-//         }
-//     };
-// }
 
 }  // namespace net::io

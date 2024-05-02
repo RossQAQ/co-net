@@ -24,11 +24,16 @@ inline constexpr bool URING_USE_MULTISHOT_ACCEPT = false;
 
 inline constexpr __kernel_timespec MINOR_URING_WAIT_CQE_TIMEOUT = 3_s;
 
-// inline constexpr bool URING_USE_DIRECT_FD_AS_SOCKET = true;
+inline constexpr bool URING_USE_DIRECT_FD_AS_SOCKET = true;
 
-// inline constexpr size_t URING_DIRECT_FD_TABLE_SIZE = 32768;
+inline constexpr size_t URING_DIRECT_FD_TABLE_SIZE = 32768;
 
-// 8mb
-inline constexpr size_t PROVIDED_BUFFER_INITIAL_SIZE = 8'388'608;
+inline constexpr size_t BUFFER_RING_SIZE = 512;
+
+inline constexpr size_t N_BUFFERS = 1024 * 16;
+
+inline constexpr bool AUTO_EXTEND_WHEN_NOBUFS = true;
+
+inline constexpr __kernel_timespec NOBUFS_SLEEP_FOR = 15_ms;
 
 }  // namespace config

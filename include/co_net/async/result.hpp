@@ -23,7 +23,7 @@ public:
 
     template <typename... Ts>
     void construct_result(Ts&&... args) {
-        std::construct_at(std::addressof(value_), std::forward<T>(args)...);
+        std::construct_at(std::addressof(value_), std::forward<Ts>(args)...);
     }
 
 private:

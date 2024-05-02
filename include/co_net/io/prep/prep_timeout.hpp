@@ -13,17 +13,19 @@ public:
 
     template <typename F>
         requires std::is_invocable_v<F, io_uring_sqe*>
-    TimeoutAwaiter(io::Uring* ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {}
+    TimeoutAwaiter(io::Uring* ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {
+        token_.op_ = Op::Timeout;
+    }
 };
 
 inline net::async::Task<void> async_sleep_for(__kernel_timespec ts,
                                               int count = 1,
                                               int flags = IORING_TIMEOUT_REALTIME | IORING_TIMEOUT_ETIME_SUCCESS) {
-    auto [res, flag] = co_await TimeoutAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
-                                                   io_uring_prep_timeout(sqe, &ts, count, flags);
-                                               } };
+    auto [op, res, flag] = co_await TimeoutAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
+                                                       io_uring_prep_timeout(sqe, &ts, count, flags);
+                                                   } };
 
-    if (res != -ETIME) [[unlikely]] {
+    if (res != -ETIME && res != 0) [[unlikely]] {
         throw std::runtime_error("io_uring preparing timeout error");
     }
 }

@@ -6,6 +6,7 @@
 #include <ranges>
 #include <source_location>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace tools::debug {
