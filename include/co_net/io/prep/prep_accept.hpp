@@ -21,9 +21,9 @@ public:
 };
 
 inline net::async::Task<int> prep_accept(int socket, int flags) {
-    auto [op, res, flag] = co_await AcceptAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
-                                                      io_uring_prep_accept(sqe, socket, nullptr, nullptr, flags);
-                                                  } };
+    auto [res, flag] = co_await AcceptAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
+                                                  io_uring_prep_accept(sqe, socket, nullptr, nullptr, flags);
+                                              } };
 
     if (res < 0) [[unlikely]] {
         throw std::runtime_error("io_uring prep accept failed.");
@@ -45,7 +45,7 @@ public:
 };
 
 inline net::async::Task<int> prep_accept_direct(int socket_direct) {
-    auto [op, res, flag] = co_await DirectAcceptAwaiter{
+    auto [res, flag] = co_await DirectAcceptAwaiter{
         ::this_ctx::local_uring_loop,
         [&](io_uring_sqe* sqe) {
             io_uring_prep_accept_direct(sqe, socket_direct, nullptr, nullptr, 0, IORING_FILE_INDEX_ALLOC);

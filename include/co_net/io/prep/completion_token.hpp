@@ -36,10 +36,4 @@ struct CompletionToken {
     int32_t cqe_flags_;
 };
 
-struct AsyncResult {
-    Op op_{ Op::Unknown };
-    int32_t cqe_res_{ -ENOSYS };
-    int32_t cqe_flags_;
-};
-
 }  // namespace net::io

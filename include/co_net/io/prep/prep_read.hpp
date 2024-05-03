@@ -22,9 +22,9 @@ public:
 };
 
 inline net::async::Task<int> prep_read(int socket, std::span<char> buffer) {
-    auto [op, res, flag] = co_await ReadAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
-                                                    io_uring_prep_read(sqe, socket, buffer.data(), buffer.size(), 0);
-                                                } };
+    auto [res, flag] = co_await ReadAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
+                                                io_uring_prep_read(sqe, socket, buffer.data(), buffer.size(), 0);
+                                            } };
 
     if (res < 0) [[unlikely]] {
         Dump(), strerror(-res);

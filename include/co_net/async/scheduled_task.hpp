@@ -2,6 +2,7 @@
 
 #include <coroutine>
 #include <exception>
+#include <functional>
 #include <stdexcept>
 #include <utility>
 
@@ -12,8 +13,18 @@ namespace net::async {
 class ScheduledTask {
 public:
     ScheduledTask(net::async::Task<>&& task) : task_(std::move(task)), continuation_(task_.handle()) {
-        task_.set_chian_task_root(this);
+        task_.set_chain_task_root(this);
     }
+
+    template <typename VoidTask, typename... Args>
+        requires(std::is_invocable_r_v<async::Task<>, VoidTask, Args...> && std::is_rvalue_reference_v<VoidTask &&>)
+    ScheduledTask(VoidTask&& task, Args&&... args) :
+        task_(std::invoke(task, std::forward<Args>(args)...)),
+        continuation_(task_.handle()) {
+        task_.set_chain_task_root(this);
+    }
+
+    ScheduledTask(ScheduledTask&&) = default;
 
     ScheduledTask& operator=(ScheduledTask&&) = default;
 
@@ -47,7 +58,7 @@ public:
 private:
     net::async::Task<> task_;
 
-    std::coroutine_handle<> continuation_;
+    std::coroutine_handle<> continuation_{ nullptr };
 
     bool valid_{ true };
 

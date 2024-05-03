@@ -12,7 +12,7 @@ using namespace net::tcp;
 using namespace net::async;
 
 Task<> world() {
-    Dump(), " World";
+    Dump(), "World";
     co_return;
 }
 
@@ -22,15 +22,13 @@ Task<> hello() {
     co_return;
 }
 
-Task<> spawn_coroutines() {
-    net::context::co_spawn(hello());
-    net::context::co_spawn(hello());
-    net::context::co_spawn(hello());
-    net::context::co_spawn(hello());
-    net::context::co_spawn(hello());
+Task<> spawn_coroutines(int x) {
+    Dump(), x;
+    net::context::co_spawn(&hello);
+    net::context::co_spawn(&hello);
     co_return;
 }
 
 int main() {
-    return net::context::block_on(spawn_coroutines());
+    return net::context::block_on(&spawn_coroutines, 42);
 }

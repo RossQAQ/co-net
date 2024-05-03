@@ -2,7 +2,9 @@
 
 #include <sys/socket.h>
 
+#include <map>
 #include <tuple>
+#include <vector>
 
 #include "co_net/io/prep/prep_accept.hpp"
 #include "co_net/io/prep/prep_socket.hpp"
@@ -53,11 +55,10 @@ private:
     void listen(int backlog) { ::listen(socket_.fd(), backlog); }
 
 private:
-    enum class AcceptState { SingleShot, MultiShot, MultiShotError };
-
-    AcceptState state_;
-
     ::net::Socket socket_;
+
+    // ring_fd, direct socket;
+    std::map<int, std::vector<int>> connections_;
 };
 
 }  // namespace net::tcp

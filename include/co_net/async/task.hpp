@@ -119,7 +119,7 @@ public:
 
     void resume() { handle_.resume(); }
 
-    void set_chian_task_root(ScheduledTask* root) { handle_.promise().set_chain_root(root); }
+    void set_chain_task_root(ScheduledTask* root) { handle_.promise().set_chain_root(root); }
 
 private:
     std::coroutine_handle<promise_type> handle_{ nullptr };

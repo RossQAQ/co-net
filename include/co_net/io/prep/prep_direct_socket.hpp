@@ -22,7 +22,7 @@ public:
 };
 
 inline net::async::Task<int> prep_direct_socket(int domain, int type, int protocol, int flags) {
-    auto [op, res, flag] =
+    auto [res, flag] =
         co_await DirectSocketAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
                                          io_uring_prep_socket_direct_alloc(sqe, domain, type, protocol, flags);
                                      } };

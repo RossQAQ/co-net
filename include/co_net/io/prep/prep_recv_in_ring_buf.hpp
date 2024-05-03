@@ -24,7 +24,7 @@ public:
 };
 
 inline net::async::Task<std::tuple<int, int>> prep_recv_in_ring_buf(int socket) {
-    auto [op, res, flag] =
+    auto [res, flag] =
         co_await RecvRingBufAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
                                         io_uring_prep_recv(sqe, socket, nullptr, config::BUFFER_RING_SIZE, 0);
                                     } };

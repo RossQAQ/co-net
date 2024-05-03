@@ -24,6 +24,11 @@ public:
 
     void enqueue(net::async::Task<>&& task) { task_queue_.emplace_back(std::move(task)); }
 
+    template <typename VoidTask, typename... Args>
+    void emplace_back(VoidTask&& task, Args&&... args) {
+        task_queue_.emplace_back(std::forward<VoidTask>(task), std::forward<Args>(args)...);
+    }
+
     [[nodiscard]]
     bool empty() const noexcept {
         return task_queue_.empty();

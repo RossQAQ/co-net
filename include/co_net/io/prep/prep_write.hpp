@@ -22,9 +22,9 @@ public:
 };
 
 inline net::async::Task<int> prep_write(int socket, std::span<char> buffer) {
-    auto [op, res, flag] = co_await WriteAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
-                                                     io_uring_prep_write(sqe, socket, buffer.data(), buffer.size(), 0);
-                                                 } };
+    auto [res, flag] = co_await WriteAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
+                                                 io_uring_prep_write(sqe, socket, buffer.data(), buffer.size(), 0);
+                                             } };
 
     if (res < 0) [[unlikely]] {
         throw std::runtime_error("io_uring prep write failed.");
@@ -34,9 +34,9 @@ inline net::async::Task<int> prep_write(int socket, std::span<char> buffer) {
 }
 
 inline net::async::Task<int> prep_write(int socket, std::span<char> buffer, size_t len) {
-    auto [op, res, flag] = co_await WriteAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
-                                                     io_uring_prep_write(sqe, socket, buffer.data(), len, 0);
-                                                 } };
+    auto [res, flag] = co_await WriteAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
+                                                 io_uring_prep_write(sqe, socket, buffer.data(), len, 0);
+                                             } };
 
     if (res < 0) [[unlikely]] {
         throw std::runtime_error("io_uring prep write failed.");

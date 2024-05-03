@@ -41,7 +41,7 @@ public:
         return;
     }
 
-    AsyncResult await_resume() noexcept { return { token_.op_, token_.cqe_res_, token_.cqe_flags_ }; }
+    std::tuple<int, int> await_resume() noexcept { return std::make_tuple(token_.cqe_res_, token_.cqe_flags_); }
 
 protected:
     io_uring_sqe* sqe_{ nullptr };

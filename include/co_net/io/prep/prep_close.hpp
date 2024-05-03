@@ -19,7 +19,7 @@ public:
 };
 
 inline net::async::Task<void> prep_close_socket(int socket) {
-    auto [op, res, flag] = co_await CloseAwaiter{ ::this_ctx::local_uring_loop,
+    auto [ res, flag] = co_await CloseAwaiter{ ::this_ctx::local_uring_loop,
                                                   [&](io_uring_sqe* sqe) { io_uring_prep_close(sqe, socket); } };
 
     if (res < 0) [[unlikely]] {
