@@ -15,35 +15,27 @@ public:
     Entity() {}
     Entity(const Entity&) {}
     Entity(Entity&&) {}
-    ~Entity() {}
+    ~Entity() { Dump(); }
 };
 
-class Conn {
-public:
-    Conn(Entity e) : e_(std::move(e)) {}
-
-    Conn(Conn&&) = default;
-
-    ~Conn() { Dump(); }
-
-private:
-    Entity e_;
-};
-
-Task<void> echo(Conn conn) {
+Task<void> echo(Entity conn) {
     Dump(), "this is echo";
     co_return;
 }
 
 Task<void> server() {
-    Entity e;
+    Entity e1;
+    Entity e2;
+    Entity e3;
     Dump();
-    co_await echo(std::move(e));
+    net::context::parallel_spawn(&echo, std::move(e1));
+    net::context::parallel_spawn(&echo, std::move(e2));
+    net::context::parallel_spawn(&echo, std::move(e3));
+    for (;;) {}
     co_return;
 }
 
 int main() {
-    int ret = net::context::block_on(server());
-    Dump();
+    int ret = net::context::block_on(&server);
     return ret;
 }

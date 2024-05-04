@@ -24,6 +24,8 @@ inline constexpr bool URING_USE_MULTISHOT_ACCEPT = false;
 
 inline constexpr __kernel_timespec MINOR_URING_WAIT_CQE_TIMEOUT = 3_s;
 
+inline constexpr __kernel_timespec WORKER_URING_WAIT_CQE_INTERVAL = 15_ms;
+
 inline constexpr bool URING_USE_DIRECT_FD_AS_SOCKET = true;
 
 inline constexpr size_t URING_DIRECT_FD_TABLE_SIZE = 32768;

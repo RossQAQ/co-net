@@ -39,6 +39,12 @@ public:
 
                 this_ctx::local_ring_buffer = &worker_buffer;
 
+                auto ret = io_uring_register_files_sparse(worker_ring.get(), config::URING_DIRECT_FD_TABLE_SIZE);
+                if (ret < 0) {
+                    throw std::runtime_error("Worker ring register files error");
+                    std::exit(1);
+                }
+
                 {
                     std::lock_guard lg(mtx_);
                     uring_fds_.push_back(worker_ring.fd());
@@ -50,7 +56,7 @@ public:
 
                     worker_ring.submit_all();
 
-                    worker_ring.wait_cqe_arrival();
+                    worker_ring.wait_cqe_arrival_for(config::WORKER_URING_WAIT_CQE_INTERVAL);
 
                     worker_ring.process_batch();
 
@@ -68,9 +74,11 @@ public:
         for (auto& th : threads_) { th.request_stop(); }
     }
 
-    const int get_uring_id_by_index(int idx) const { return uring_fds_.at(idx); }
+    const int get_uring_fd(int idx) const { return uring_fds_.at(idx); }
 
     std::span<int> get_worker_ids() noexcept { return uring_fds_; }
+
+    int count() const noexcept { return uring_fds_.size(); }
 
 private:
     std::vector<std::jthread> threads_;

@@ -16,7 +16,7 @@ struct UringAwaiter {
 public:
     template <typename F>
         requires std::is_invocable_v<F, io_uring_sqe*>
-    explicit UringAwaiter(io::Uring* ring, F&& func) {
+    explicit UringAwaiter(net::io::Uring* ring, F&& func) {
         sqe_ = ring->get_sqe();
         func(sqe_);
         io_uring_sqe_set_data(sqe_, &token_);

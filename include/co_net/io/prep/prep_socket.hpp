@@ -19,7 +19,7 @@ public:
 };
 
 inline net::async::Task<int> prep_normal_socket(int domain, int type, int protocol, int flags) {
-    auto [res, flag] = co_await SocketAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
+    auto [res, flag] = co_await SocketAwaiter{ ::sys_ctx::sys_uring_loop, [&](io_uring_sqe* sqe) {
                                                   io_uring_prep_socket(sqe, domain, type, protocol, flags);
                                               } };
 

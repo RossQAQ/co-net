@@ -103,85 +103,87 @@ private:
     net::ip::SocketAddr addr_;
 };
 
-class DirectSocket {
-public:
-    DirectSocket(int fd, bool v4) : fd_(fd), addr_(fd, v4) {}
+// class DirectSocket {
+// public:
+//     explicit DirectSocket(int fd, bool v4) : fd_(fd), addr_(fd, v4) {}
 
-    DirectSocket(DirectSocket&& rhs) noexcept {
-        fd_ = rhs.fd_;
-        addr_ = rhs.addr_;
-        rhs.fd_ = -1;
-    }
+//     explicit DirectSocket(int fd, net::ip::SocketAddr addr) : fd_(fd), addr_(addr_) {}
 
-    DirectSocket& operator=(DirectSocket&& rhs) noexcept {
-        fd_ = rhs.fd_;
-        addr_ = rhs.addr_;
-        rhs.fd_ = -1;
-        return *this;
-    }
+//     DirectSocket(DirectSocket&& rhs) noexcept {
+//         fd_ = rhs.fd_;
+//         addr_ = rhs.addr_;
+//         rhs.fd_ = -1;
+//     }
 
-    ~DirectSocket() {
-        if (fd_ > -1) {
-            auto* sqe = this_ctx::local_uring_loop->get_sqe();
-            io_uring_prep_close_direct(sqe, fd_);
-            ::net::io::CompletionToken* token = new ::net::io::CompletionToken{};
-            token->op_ = ::net::io::Op::SyncCloseDirect;
-            io_uring_sqe_set_data(sqe, static_cast<void*>(token));
-            this_ctx::local_uring_loop->submit_all();
-        }
-        fd_ = -1;
-    }
+//     DirectSocket& operator=(DirectSocket&& rhs) noexcept {
+//         fd_ = rhs.fd_;
+//         addr_ = rhs.addr_;
+//         rhs.fd_ = -1;
+//         return *this;
+//     }
 
-    // ::net::async::Task<void> release_direct(int sock) {
-    //     co_await ::net::io::operation::prep_close_socket_direct(sock);
-    //     fd_ = -1;
-    // }
+//     ~DirectSocket() {
+//         if (fd_ > -1) {
+//             auto* sqe = this_ctx::local_uring_loop->get_sqe();
+//             io_uring_prep_close_direct(sqe, fd_);
+//             ::net::io::CompletionToken* token = new ::net::io::CompletionToken{};
+//             token->op_ = ::net::io::Op::SyncCloseDirect;
+//             io_uring_sqe_set_data(sqe, static_cast<void*>(token));
+//             this_ctx::local_uring_loop->submit_all();
+//         }
+//         fd_ = -1;
+//     }
 
-    [[nodiscard]]
-    const int fd() const noexcept {
-        return fd_;
-    }
+//     // ::net::async::Task<void> release_direct(int sock) {
+//     //     co_await ::net::io::operation::prep_close_socket_direct(sock);
+//     //     fd_ = -1;
+//     // }
 
-    [[nodiscard]]
-    int fd() noexcept {
-        return fd_;
-    }
+//     [[nodiscard]]
+//     const int fd() const noexcept {
+//         return fd_;
+//     }
 
-    [[nodiscard]]
-    sockaddr* address() {
-        return addr_.is_ipv4() ? reinterpret_cast<sockaddr*>(&addr_.sockaddr_v4())
-                               : reinterpret_cast<sockaddr*>(&addr_.sockaddr_v6());
-    }
+//     [[nodiscard]]
+//     int fd() noexcept {
+//         return fd_;
+//     }
 
-    [[nodiscard]]
-    std::string address() const noexcept {
-        return addr_.to_string();
-    }
+//     [[nodiscard]]
+//     sockaddr* address() {
+//         return addr_.is_ipv4() ? reinterpret_cast<sockaddr*>(&addr_.sockaddr_v4())
+//                                : reinterpret_cast<sockaddr*>(&addr_.sockaddr_v6());
+//     }
 
-    [[nodiscard]]
-    socklen_t len() {
-        return addr_.len();
-    }
+//     [[nodiscard]]
+//     std::string address() const noexcept {
+//         return addr_.to_string();
+//     }
 
-    [[nodiscard]]
-    bool is_valid() const noexcept {
-        return fd_ != -1;
-    }
+//     [[nodiscard]]
+//     socklen_t len() {
+//         return addr_.len();
+//     }
 
-    [[nodiscard]]
-    bool is_ipv4() const noexcept {
-        return addr_.is_ipv4();
-    }
+//     [[nodiscard]]
+//     bool is_valid() const noexcept {
+//         return fd_ != -1;
+//     }
 
-    [[nodiscard]]
-    bool is_ipv6() const noexcept {
-        return !addr_.is_ipv4();
-    }
+//     [[nodiscard]]
+//     bool is_ipv4() const noexcept {
+//         return addr_.is_ipv4();
+//     }
 
-private:
-    int fd_{ -1 };
-    net::ip::SocketAddr addr_;
-};
+//     [[nodiscard]]
+//     bool is_ipv6() const noexcept {
+//         return !addr_.is_ipv4();
+//     }
+
+// private:
+//     int fd_{ -1 };
+//     net::ip::SocketAddr addr_;
+// };
 
 ::net::async::Task<Socket> create_tcp_socket(const ::net::ip::SocketAddr& addr) {
     auto socktype = addr.is_ipv4() ? AF_INET : AF_INET6;

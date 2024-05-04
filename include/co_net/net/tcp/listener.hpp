@@ -32,9 +32,9 @@ public:
         int client_sock = co_await ::net::io::operation::prep_accept_direct(listen_fd());
 
         if (socket_.is_ipv4()) {
-            co_return TcpConnection{ ::net::DirectSocket{ client_sock, true } };
+            co_return TcpConnection{ client_sock };
         } else {
-            co_return TcpConnection{ ::net::DirectSocket{ client_sock, false } };
+            co_return TcpConnection{ client_sock };
         }
     }
 

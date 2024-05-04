@@ -1,7 +1,11 @@
 #pragma once
 
+#include <liburing.h>
+
+#include <functional>
 #include <span>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "co_net/async/task.hpp"
@@ -17,48 +21,72 @@ namespace net::tcp {
 
 class TcpConnection : public ::tools::Noncopyable {
 public:
-    explicit TcpConnection(::net::DirectSocket sock) : socket_(std::move(sock)) {}
+    explicit TcpConnection(int direct_socket) : socket_(direct_socket), direct_fd_in_sys_ring_(direct_socket) {}
 
-    TcpConnection(TcpConnection&& rhs) : socket_(std::move(rhs.socket_)) {}
+    TcpConnection(TcpConnection&& rhs) :
+        socket_(std::exchange(rhs.socket_, -1)),
+        direct_fd_in_sys_ring_(std::exchange(rhs.direct_fd_in_sys_ring_, -1)),
+        direct_fd_in_this_ring_(std::exchange(rhs.direct_fd_in_this_ring_, -1)),
+        send_buffer_(rhs.move_out_sended()),
+        receive_buffer_(rhs.move_out_received()),
+        ownership_in_sys_ring_(rhs.ownership_in_sys_ring_) {}
 
     TcpConnection& operator=(TcpConnection&& rhs) {
-        socket_ = std::move(rhs.socket_);
+        socket_ = std::exchange(rhs.socket_, -1);
+        direct_fd_in_sys_ring_ = std::exchange(rhs.direct_fd_in_sys_ring_, -1);
+        direct_fd_in_this_ring_ = std::exchange(rhs.direct_fd_in_this_ring_, -1);
+        send_buffer_ = rhs.move_out_sended();
+        receive_buffer_ = rhs.move_out_received();
+        ownership_in_sys_ring_ = rhs.ownership_in_sys_ring_;
         return *this;
     }
 
-    ~TcpConnection() = default;
+    ~TcpConnection() {
+        if (ownership_in_sys_ring_) {
+            sys_ctx::sys_uring_loop->close_direct_socket(socket_);
+            direct_fd_in_sys_ring_ = -1;
+        } else {
+            if (direct_fd_in_this_ring_ > -1) [[likely]] {
+                this_ctx::local_uring_loop->close_direct_socket(socket_);
+            }
+            direct_fd_in_this_ring_ = -1;
+        }
+        socket_ = -1;
+    }
 
-    [[nodiscard]]
-    std::string address() const noexcept {
-        return socket_.address();
+    void release() {
+        if (ownership_in_sys_ring_ == false) {
+            throw std::logic_error("You cannot release the connection onwership in worker ring loop.");
+        }
+        direct_fd_in_sys_ring_ = -1;
+        ownership_in_sys_ring_ = false;
+    }
+
+    void set_subring_socket(int subring_direct_socket) {
+        socket_ = subring_direct_socket;
+        direct_fd_in_this_ring_ = subring_direct_socket;
+        ownership_in_sys_ring_ = false;
     }
 
     [[nodiscard]]
     int fd() const noexcept {
-        return socket_.fd();
+        return socket_;
     }
 
-    // ::net::async::Task<void> disconnect() {
-    //     auto ret = co_await ::net::io::operation::prep_close_socket(socket_.fd());
-    //     if (!ret) {
-    //         socket_.release();
-    //     }
-    // }
-
     ::net::async::Task<ssize_t> read_some(std::span<char> buf) {
-        co_return co_await ::net::io::operation::prep_read(socket_.fd(), buf);
+        co_return co_await ::net::io::operation::prep_read(socket_, buf);
     }
 
     ::net::async::Task<ssize_t> write_some(std::span<char> buf, size_t len) {
-        co_return co_await ::net::io::operation::prep_write(socket_.fd(), buf, len);
+        co_return co_await ::net::io::operation::prep_write(socket_, buf, len);
     }
 
     ::net::async::Task<ssize_t> write_all(std::span<char> buf) {
-        co_return co_await ::net::io::operation::prep_write(socket_.fd(), buf);
+        co_return co_await ::net::io::operation::prep_write(socket_, buf);
     }
 
     ::net::async::Task<ssize_t> ring_buf_receive() {
-        auto [res, flag] = co_await ::net::io::operation::prep_recv_in_ring_buf(socket_.fd());
+        auto [res, flag] = co_await ::net::io::operation::prep_recv_in_ring_buf(socket_);
 
         while (res == -ENOBUFS) {
             if constexpr (!config::AUTO_EXTEND_WHEN_NOBUFS) {
@@ -67,7 +95,7 @@ public:
                 this_ctx::local_ring_buffer->extend_buffer();
             }
 
-            auto [res_, flag_] = co_await ::net::io::operation::prep_recv_in_ring_buf(socket_.fd());
+            auto [res_, flag_] = co_await ::net::io::operation::prep_recv_in_ring_buf(socket_);
             res = res_;
             flag = flag_;
         }
@@ -119,7 +147,14 @@ public:
     std::vector<char> copy_received() const noexcept { return receive_buffer_; }
 
 private:
-    ::net::DirectSocket socket_;
+    // ::net::DirectSocket socket_;
+    int socket_{ -1 };
+
+    int direct_fd_in_sys_ring_{ -1 };
+
+    int direct_fd_in_this_ring_{ -1 };
+
+    bool ownership_in_sys_ring_{ true };
 
     std::vector<char> send_buffer_;
 
@@ -127,3 +162,23 @@ private:
 };
 
 }  // namespace net::tcp
+
+namespace net::io {
+
+void Uring::impl_handle_msg_conn(io_uring_cqe* cqe) {
+    auto* task_token = reinterpret_cast<msg::RingMsgConnTaskHelper*>(cqe->user_data);
+    auto task = task_token->move_out();
+    auto sys_conn_fd = task_token->direct_fd_;
+    delete task_token;
+
+    auto connfd = direct_map_[sys_conn_fd];
+    direct_map_.erase(sys_conn_fd);
+
+    auto conn = net::tcp::TcpConnection{ -1 };
+    conn.set_subring_socket(connfd);
+    peer_task_loop_->emplace_back(std::move(task), std::move(conn));
+
+    notify_main_ring_release_fd(sys_conn_fd);
+}
+
+}  // namespace net::io

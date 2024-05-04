@@ -17,7 +17,8 @@ public:
     }
 
     template <typename VoidTask, typename... Args>
-        requires(std::is_invocable_r_v<async::Task<>, VoidTask, Args...> && std::is_rvalue_reference_v<VoidTask &&>)
+        requires(std::is_invocable_r_v<net::async::Task<>, VoidTask, Args...> &&
+                 std::is_rvalue_reference_v<VoidTask &&>)
     ScheduledTask(VoidTask&& task, Args&&... args) :
         task_(std::invoke(task, std::forward<Args>(args)...)),
         continuation_(task_.handle()) {

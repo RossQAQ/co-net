@@ -4,7 +4,9 @@
 
 #include <coroutine>
 
-#include "co_net/async/scheduled_task.hpp"
+namespace net::async {
+class ScheduledTask;
+}
 
 namespace net::io {
 
@@ -14,8 +16,9 @@ enum class Op {
     Socket,
     Accept,
     MultishotAccept,
-    RingMessage,
-    RingFd,
+    RingTask,
+    RingFdSender,
+    RingFdReceiver,
     Send,
     Receive,
     MultishotReceive,
@@ -23,6 +26,7 @@ enum class Op {
     Shutdown,
     SyncCloseDirect,
     AsyncCloseDirect,
+    MainRingCloseDirectSocket,
     Close,
     CancelAny,
     Quit,

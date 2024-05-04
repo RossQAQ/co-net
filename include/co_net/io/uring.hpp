@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstring>
+#include <unordered_map>
 
 #include "co_net/async/task.hpp"
 #include "co_net/config.hpp"
@@ -22,6 +23,9 @@
  * IORING_CQE_F_SOCKEMPTY
  * IORING_CQE_F_NOTIFY
  */
+
+#define NET_IORING_CQE_F_TASK (1u << 4)
+#define NET_IORING_CQE_F_FD   (1u << 5)
 
 namespace net::io {
 
@@ -125,32 +129,78 @@ public:
         return &ring_;
     }
 
+    void notify_main_ring_release_fd(int direct_fd) {
+        CompletionToken* token = new CompletionToken{};
+        token->op_ = Op::MainRingCloseDirectSocket;
+
+        auto* notify = get_sqe();
+        io_uring_prep_msg_ring(notify,
+                               sys_ctx::sys_uring_loop->fd(),
+                               direct_fd,
+                               reinterpret_cast<unsigned long long>(token),
+                               0);
+        notify->flags |= IOSQE_CQE_SKIP_SUCCESS;
+        submit_all();
+    }
+
 private:
     friend class net::context::SystemLoop;
 
+    friend class net::tcp::TcpConnection;
+
     void handle_request(io_uring_cqe* cqe) {
-        CompletionToken* token = reinterpret_cast<CompletionToken*>(cqe->user_data);
+        if ((cqe->res == static_cast<int32_t>(msg::RingMsgType::RingTask)) && (cqe->flags & NET_IORING_CQE_F_TASK))
+            [[unlikely]] {
+            auto* msg_task = reinterpret_cast<msg::RingMsgTask*>(cqe->user_data);
+            peer_task_loop_->enqueue(msg_task->move_out());
+            delete msg_task;
+        } else if ((cqe->res == static_cast<int32_t>(msg::RingMsgType::RingFuncTask)) &&
+                   (cqe->flags & NET_IORING_CQE_F_TASK)) [[unlikely]] {
+            impl_handle_msg_conn(cqe);
+        } else {
+            CompletionToken* token = reinterpret_cast<CompletionToken*>(cqe->user_data);
 
-        if (token) [[likely]] {
-            switch (token->op_) {
-                case Op::SyncCloseDirect:
-                    delete token;
-                    break;
+            if (token) [[likely]] {
+                switch (token->op_) {
+                    case Op::SyncCloseDirect:
+                        delete token;
+                        break;
 
-                case Op::Quit:
-                    stopped_ = true;
-                    delete token;
-                    break;
+                    case Op::Quit:
+                        stopped_ = true;
+                        delete token;
+                        break;
 
-                case Op::CancelAny:
-                    delete token;
-                    break;
+                    case Op::CancelAny:
+                        delete token;
+                        break;
 
-                default:
-                    token->cqe_res_ = cqe->res;
-                    token->cqe_flags_ = cqe->flags;
-                    token->chain_task_->set_pending(false);
-                    break;
+                    case Op::RingTask:
+                        delete token;
+                        break;
+
+                    case Op::RingFdSender:
+                        delete token;
+                        break;
+
+                    case Op::RingFdReceiver:
+                        direct_map_[token->cqe_res_] = cqe->res;
+                        delete token;
+                        break;
+
+                    case Op::MainRingCloseDirectSocket:
+                        close_direct_socket(cqe->res);
+                        delete token;
+                        break;
+
+                    default:
+                        token->cqe_res_ = cqe->res;
+                        token->cqe_flags_ = cqe->flags;
+                        if (token->chain_task_) [[likely]] {
+                            token->chain_task_->set_pending(false);
+                        }
+                        break;
+                }
             }
         }
     }
@@ -187,10 +237,22 @@ private:
         io_uring_prep_msg_ring(sqe, ring_.ring_fd, 0, reinterpret_cast<unsigned long long>(token), 0);
     }
 
+    void impl_handle_msg_conn(io_uring_cqe* cqe);
+
+    void close_direct_socket(int direct_fd) {
+        Dump(), "Close direct";
+        // auto* sqe = get_sqe();
+        // io_uring_prep_close_direct(sqe, direct_fd);
+        // sqe->flags |= IOSQE_CQE_SKIP_SUCCESS;
+        // submit_all();
+    }
+
 private:
     io_uring ring_;
 
     bool stopped_{ false };
+
+    std::unordered_map<int, int> direct_map_;
 
     ::net::context::TaskLoop* peer_task_loop_;
 };

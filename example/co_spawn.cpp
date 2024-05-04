@@ -11,21 +11,30 @@ using namespace net;
 using namespace net::tcp;
 using namespace net::async;
 
-Task<> world() {
+class Entity {
+public:
+    Entity() {}
+    Entity(const Entity&) {}
+    Entity(Entity&&) {}
+    ~Entity() { Dump(); }
+};
+
+Task<> world(Entity e) {
     Dump(), "World";
     co_return;
 }
 
-Task<> hello() {
+Task<> hello(Entity e) {
     Dump(), "Hello";
-    co_await world();
+    co_await world(std::move(e));
     co_return;
 }
 
 Task<> spawn_coroutines(int x) {
     Dump(), x;
-    net::context::co_spawn(&hello);
-    net::context::co_spawn(&hello);
+    Entity e;
+    net::context::co_spawn(&hello, e);
+    net::context::co_spawn(&hello, e);
     co_return;
 }
 
