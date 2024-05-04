@@ -27,10 +27,10 @@ public:
         main_task_queue_(),
         main_uring_(&main_task_queue_),
         io_buffer_(main_uring_.get()),
-        init_latch_(config::WORKERS ? config::WORKERS : std::thread::hardware_concurrency()),
-        workers_(config::WORKERS, main_uring_.fd(), init_latch_) {
-        init_latch_.wait();
-
+        init_latch_(config::WORKERS ? config::WORKERS : std::thread::hardware_concurrency())
+    // workers_(config::WORKERS, main_uring_.fd(), init_latch_) {
+    //  init_latch_.wait();
+    {
         this_ctx::local_task_queue = &main_task_queue_;
         this_ctx::local_uring_loop = &main_uring_;
         this_ctx::local_ring_buffer = &io_buffer_;
@@ -51,12 +51,13 @@ public:
         using namespace net::time_literals;
 
         int ret{};
-        while (!stopped_) {
+        while (!stopped_ && !ret) {
             main_task_queue_.run();
 
             main_uring_.submit_all();
 
             if (main_task_queue_.empty()) {
+                Dump(), "Empty?";
                 break;
             }
 
@@ -71,8 +72,8 @@ public:
     void terminate() {
         if (!stopped_) {
             stopped_ = true;
-            workers_.stop();
-            main_uring_.notify_workers_to_stop(workers_.get_worker_ids());
+            // workers_.stop();
+            // main_uring_.notify_workers_to_stop(workers_.get_worker_ids());
             main_uring_.notify_self_quit();
             main_uring_.submit_all();
             main_uring_.wait_cqe_arrival();
@@ -82,8 +83,9 @@ public:
 
     [[nodiscard]]
     int pick_worker() {
-        current_worker_uring_idx_ = (current_worker_uring_idx_ + 1) % workers_.count();
-        return workers_.get_uring_fd(current_worker_uring_idx_);
+        // current_worker_uring_idx_ = (current_worker_uring_idx_ + 1) % workers_.count();
+        // return workers_.get_uring_fd(current_worker_uring_idx_);
+        return 4;
     }
 
 private:
@@ -93,7 +95,7 @@ private:
 
     ::net::io::RingBuffer io_buffer_;
 
-    ::net::context::Workers workers_;
+    // ::net::context::Workers workers_;
 
     std::latch init_latch_;
 
@@ -116,7 +118,7 @@ inline int block_on(VoidTask&& task, Args&&... args) {
     };
     sigaction(SIGINT, &when_sigint, nullptr);
 
-    this_ctx::local_task_queue->emplace_back(std::forward<VoidTask>(task), std::forward<Args>(args)...);
+    this_ctx::local_task_queue->emplace_back(std::move(task), std::forward<Args>(args)...);
     loop.run();
     return 0;
 }
@@ -197,10 +199,21 @@ inline void parallel_spawn(VoidTask&& task, Args&&... args) {
     sys_ctx::sys_uring_loop->submit_all();
 }
 
+// template <typename VoidTask, typename... Args>
+// async::Task<void> co_spawn_helper(VoidTask&& task, Args&&... args) {
+//     auto detail = std::invoke(task, std::forward<Args>(args)...);
+//     co_await detail;
+// }
+
 template <typename VoidTask, typename... Args>
     requires(std::is_invocable_r_v<async::Task<void>, VoidTask, Args...> && std::is_rvalue_reference_v<VoidTask &&>)
 inline void co_spawn(VoidTask&& task, Args&&... args) {
-    this_ctx::local_task_queue->emplace_back(std::forward<VoidTask>(task), std::forward<Args>(args)...);
+    // auto wrapper = co_spawn_helper(std::move(task), std::forward<Args>(args)...);
+    // wrapper.resume();
+    // this_ctx::local_task_queue->enqueue(std::move(wrapper));
+    // this_ctx::local_task_queue->enqueue(std::move(wrapper));
+    // Dump(), "???";
+    this_ctx::local_task_queue->emplace_back(std::move(task), std::forward<Args>(args)...);
 }
 
 }  // namespace net::context

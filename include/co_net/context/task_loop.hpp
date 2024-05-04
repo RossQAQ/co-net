@@ -14,19 +14,24 @@ public:
     ~TaskLoop() = default;
 
     void run() {
-        for (auto& task : task_queue_) { task.resume(); }
+        for (auto& task : task_queue_) {
+            if (task.valid() && !task.pending()) [[likely]] {
+                task.resume();
+            }
+        }
 
-        task_queue_.erase(std::remove_if(task_queue_.begin(),
-                                         task_queue_.end(),
-                                         [](net::async::ScheduledTask& task) { return !task.valid(); }),
-                          task_queue_.end());
+        // task_queue_.erase(
+        //     std::remove_if(task_queue_.begin(),
+        //                    task_queue_.end(),
+        //                    [](net::async::ScheduledTask& task) { return !task.valid() && !task.pending(); }),
+        //     task_queue_.end());
     }
 
     void enqueue(net::async::Task<>&& task) { task_queue_.emplace_back(std::move(task)); }
 
     template <typename VoidTask, typename... Args>
     void emplace_back(VoidTask&& task, Args&&... args) {
-        task_queue_.emplace_back(std::forward<VoidTask>(task), std::forward<Args>(args)...);
+        task_queue_.emplace_back(std::move(task), std::forward<Args>(args)...);
     }
 
     [[nodiscard]]

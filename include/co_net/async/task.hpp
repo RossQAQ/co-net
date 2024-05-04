@@ -84,7 +84,7 @@ public:
     Task(Task&& rhs) noexcept : handle_(rhs.handle_) { rhs.handle_ = nullptr; }
 
     Task& operator=(Task&& rhs) noexcept {
-        std::swap(handle_, rhs.handle_);
+        handle_ = std::exchange(rhs.handle_, nullptr);
         return *this;
     }
 

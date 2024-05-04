@@ -19,7 +19,7 @@ public:
     explicit UringAwaiter(net::io::Uring* ring, F&& func) {
         sqe_ = ring->get_sqe();
         func(sqe_);
-        io_uring_sqe_set_data(sqe_, &token_);
+        io_uring_sqe_set_data(sqe_, static_cast<void*>(&token_));
     }
 
     UringAwaiter(const UringAwaiter&) = delete;
@@ -35,9 +35,10 @@ public:
 
     template <typename Promise>
     void await_suspend(std::coroutine_handle<Promise> caller) {
-        caller.promise().this_chain_task_->set_continuation(caller);
+        caller.promise().this_chain_task_->set_awaiting_handle(caller);
         token_.chain_task_ = caller.promise().this_chain_task_;
         token_.chain_task_->set_pending(true);
+        // Dump(), "Chain Task in Uring Awaiter: ", static_cast<void*>(token_.chain_task_);
         return;
     }
 

@@ -159,7 +159,6 @@ private:
             impl_handle_msg_conn(cqe);
         } else {
             CompletionToken* token = reinterpret_cast<CompletionToken*>(cqe->user_data);
-
             if (token) [[likely]] {
                 switch (token->op_) {
                     case Op::SyncCloseDirect:
@@ -196,9 +195,7 @@ private:
                     default:
                         token->cqe_res_ = cqe->res;
                         token->cqe_flags_ = cqe->flags;
-                        if (token->chain_task_) [[likely]] {
-                            token->chain_task_->set_pending(false);
-                        }
+                        token->chain_task_->set_pending(false);
                         break;
                 }
             }

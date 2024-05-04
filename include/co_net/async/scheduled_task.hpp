@@ -12,8 +12,9 @@ namespace net::async {
 
 class ScheduledTask {
 public:
-    ScheduledTask(net::async::Task<>&& task) : task_(std::move(task)), continuation_(task_.handle()) {
+    ScheduledTask(net::async::Task<>&& task) : task_(std::move(task)), awaiting_handle_(task_.handle()) {
         task_.set_chain_task_root(this);
+        // Dump(), task_.handle().address();
     }
 
     template <typename VoidTask, typename... Args>
@@ -21,26 +22,25 @@ public:
                  std::is_rvalue_reference_v<VoidTask &&>)
     ScheduledTask(VoidTask&& task, Args&&... args) :
         task_(std::invoke(task, std::forward<Args>(args)...)),
-        continuation_(task_.handle()) {
+        awaiting_handle_(task_.handle()) {
         task_.set_chain_task_root(this);
+        // Dump(), "Coroutine: ", task_.handle().address();
+        // Dump(), "Coroutine Promise: ", static_cast<void*>(std::addressof(task_.handle().promise()));
+        // Dump(), "Scheduled Task: ", static_cast<void*>(this);
     }
 
-    ScheduledTask(ScheduledTask&&) = default;
+    ScheduledTask(ScheduledTask&&) noexcept = default;
 
-    ScheduledTask& operator=(ScheduledTask&&) = default;
+    ScheduledTask& operator=(ScheduledTask&&) noexcept = default;
 
     ~ScheduledTask() = default;
 
-    void set_continuation(std::coroutine_handle<> next) { continuation_ = next; }
+    void set_awaiting_handle(std::coroutine_handle<> next) { awaiting_handle_ = next; }
 
     void resume() {
-        if (task_.done()) {
+        awaiting_handle_.resume();
+        if (task_.done()) [[unlikely]] {
             valid_ = false;
-            return;
-        } else [[likely]] {
-            if (!pending_) {
-                continuation_.resume();
-            }
         }
     }
 
@@ -50,16 +50,24 @@ public:
     }
 
     [[nodiscard]]
-    bool done() {
-        return task_.done();
+    bool pending() noexcept {
+        return pending_;
     }
+
+    auto handle() { return task_.handle(); }
 
     void set_pending(bool pending) { pending_ = pending; }
 
 private:
+    [[nodiscard]]
+    bool done() {
+        return task_.done();
+    }
+
+private:
     net::async::Task<> task_;
 
-    std::coroutine_handle<> continuation_{ nullptr };
+    std::coroutine_handle<> awaiting_handle_{ nullptr };
 
     bool valid_{ true };
 
