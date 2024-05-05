@@ -27,7 +27,6 @@ inline net::async::Task<int> prep_read(int socket, std::span<char> buffer) {
                                             } };
 
     if (res < 0) [[unlikely]] {
-        Dump(), strerror(-res);
         throw std::runtime_error("io_uring prep read failed.");
     }
 

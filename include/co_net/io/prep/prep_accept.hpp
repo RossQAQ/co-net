@@ -52,7 +52,6 @@ inline net::async::Task<int> prep_accept_direct(int socket_direct) {
     };
 
     if (res < 0) [[unlikely]] {
-        Dump(), strerror(-res), res;
         throw std::runtime_error("io_uring prep direct accept failed.");
     }
 

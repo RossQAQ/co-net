@@ -13,7 +13,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     message("## Build In Debug Mode")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++2b -g -O0 -fsanitize=address")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++2b -O3 -fsanitize=address")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++2b -O3")
 endif()
 
 link_libraries(uring)

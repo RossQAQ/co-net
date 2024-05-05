@@ -10,7 +10,6 @@
 #include "co_net/config.hpp"
 #include "co_net/context/context.hpp"
 #include "co_net/context/task_loop.hpp"
-#include "co_net/detail.hpp"
 #include "co_net/io/buffer.hpp"
 #include "co_net/io/prep/completion_token.hpp"
 #include "co_net/io/prep/prep_multishot_accept.hpp"
@@ -171,7 +170,6 @@ private:
             impl_handle_msg_conn(cqe);
         } else if ((cqe->res == static_cast<int32_t>(msg::RingMsgType::MultiAccTask)) &&
                    (cqe->flags & NET_IORING_CQE_F_TASK)) [[unlikely]] {
-            Dump(), "????12345";
             impl_handle_macc_task(cqe);
         } else {
             CompletionToken* token = reinterpret_cast<CompletionToken*>(cqe->user_data);

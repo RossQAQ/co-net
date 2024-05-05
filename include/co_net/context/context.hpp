@@ -113,7 +113,7 @@ inline int block_on(VoidTask&& task, Args&&... args) {
     struct sigaction when_sigint;
     when_sigint.sa_flags = SA_SIGINFO;
     when_sigint.sa_handler = [](int signum) {
-        Dump(), "SIGINT";
+        // Dump(), "SIGINT";
         sys_ctx::sys_loop->terminate();
     };
     sigaction(SIGINT, &when_sigint, nullptr);
@@ -217,7 +217,6 @@ void Uring::mshot_accept_send_awaiting_fd_and_process(
     std::function<async::Task<void>(net::tcp::TcpConnection)> func_task) {
     for (auto fd : awaiting_direct_fd_) {
         auto worker = sys_ctx::sys_loop->pick_worker();
-        Dump(), worker;
 
         auto* send_fd = sys_ctx::sys_uring_loop->get_sqe();
         auto* send_task = sys_ctx::sys_uring_loop->get_sqe();

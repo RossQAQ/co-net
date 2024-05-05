@@ -114,27 +114,6 @@ public:
 
     ::net::async::Task<ssize_t> ring_buf_multishot_receive();
 
-    // ! todo
-    // ::net::async::Task<ssize_t> ring_buffer_read_and_split(std::string_view split) {
-    //     auto [res, flag] = co_await ::net::io::operation::prep_recv_in_ring_buf(socket_.fd());
-
-    //     if (res == -ENOBUFS) {
-    //         Dump(), strerror(-res);
-    //         std::exit(1);
-    //         // should solve no buffer situation.
-    //     }
-
-    //     int bid = flag >> IORING_CQE_BUFFER_SHIFT;
-
-    //     receive_buffer_.clear();
-
-    //     this_ctx::local_ring_buffer->copy_data(receive_buffer_, bid, res);
-
-    //     this_ctx::local_ring_buffer->repay(bid);
-
-    //     co_return res;
-    // }
-
     ::net::async::Task<void> sleep(__kernel_timespec tm = config::NOBUFS_SLEEP_FOR) {
         co_await ::net::io::operation::async_sleep_for(tm);
     }
@@ -183,7 +162,6 @@ void Uring::impl_handle_msg_conn(io_uring_cqe* cqe) {
 }
 
 void Uring::impl_handle_macc_task(io_uring_cqe* cqe) {
-    Dump(), "1234";
     auto* task_token = reinterpret_cast<msg::MultishotAcceptTaskToken*>(cqe->user_data);
     auto func = task_token->move_out();
     delete task_token;
