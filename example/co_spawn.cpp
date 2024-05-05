@@ -20,6 +20,7 @@ Task<> world() {
 }
 
 Task<> hello() {
+    Dump(), "";
     co_await async_sleep_for(20_ms);
     Dump(), "hello";
     co_return;
@@ -27,9 +28,12 @@ Task<> hello() {
 
 Task<> spawn_coroutines() {
     for (size_t i{}; i < 1; ++i) {
+        Dump(), "";
         co_await async_sleep_for(10_ms);
         net::context::co_spawn(&hello);
+        // co_await async_sleep_for(50_ms);
     }
+    Dump(), "wake";
     co_return;
 }
 

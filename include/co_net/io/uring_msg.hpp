@@ -15,6 +15,7 @@ namespace net::io::msg {
 enum class RingMsgType : int32_t {
     RingTask = 0x7a51,
     RingFuncTask = 0x7a51b,
+    MultiAccTask = 0x7a51c,
     RingFd = 0xd1fd,
 };
 
@@ -40,6 +41,18 @@ public:
     int direct_fd_{ -1 };
 
 private:
+    std::function<async::Task<>(net::tcp::TcpConnection)> func_;
+};
+
+struct MultishotAcceptTaskToken {
+    MultishotAcceptTaskToken(io::Op op, std::function<async::Task<>(net::tcp::TcpConnection)> task) :
+        op_(op),
+        func_(std::move(task)) {}
+
+    auto move_out() noexcept { return std::move(func_); }
+
+    io::Op op_;
+
     std::function<async::Task<>(net::tcp::TcpConnection)> func_;
 };
 

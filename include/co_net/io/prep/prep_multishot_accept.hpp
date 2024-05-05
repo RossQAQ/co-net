@@ -1,31 +1,39 @@
 #pragma once
-// ! todo
+
 #include <liburing.h>
 #include <sys/socket.h>
 
 #include "co_net/context/context.hpp"
-#include "co_net/io/prep/uring_awaiter.hpp"
+#include "co_net/io/uring.hpp"
 
 namespace net::io::operation {
 
-class MultishotAcceptAwaiter : public net::io::UringAwaiter<MultishotAcceptAwaiter> {
+class MultishotAcceptDirectAwaiter {
 public:
-    using UringAwaiter = net::io::UringAwaiter<MultishotAcceptAwaiter>;
+    MultishotAcceptDirectAwaiter(int socket);
 
-    template <typename F>
-        requires std::is_invocable_v<F, io_uring_sqe*>
-    MultishotAcceptAwaiter(io::Uring* ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {
-        token_.op_ = Op::MultishotAccept;
+public:
+    bool await_ready() const noexcept { return false; }
+
+    template <typename Promise>
+    void await_suspend(std::coroutine_handle<Promise> caller) {
+        MultishotAcceptDirectAwaiter::multishot_token_.chain_task_ = caller.promise().this_chain_task_;
+        MultishotAcceptDirectAwaiter::multishot_token_.chain_task_->set_awaiting_handle(caller);
+        return;
     }
 
+    void await_resume() noexcept {}
+
+    io::CompletionToken* token_address() { return &multishot_token_; }
+
 public:
-    void await_resume() {}
+    static io::CompletionToken multishot_token_;
 };
 
-inline net::async::Task<void> prep_multishot_accept(int socket, int flags) {
-    co_await MultishotAcceptAwaiter{ ::this_ctx::local_uring_loop, [&](io_uring_sqe* sqe) {
-                                        io_uring_prep_multishot_accept(sqe, socket, nullptr, nullptr, flags);
-                                    } };
+io::CompletionToken MultishotAcceptDirectAwaiter::multishot_token_;
+
+inline net::async::Task<void> prep_multishot_accept_direct(int socket) {
+    co_await MultishotAcceptDirectAwaiter{ socket };
 }
 
 }  // namespace net::io::operation

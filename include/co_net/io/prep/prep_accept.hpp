@@ -40,7 +40,6 @@ public:
         requires std::is_invocable_v<F, io_uring_sqe*>
     DirectAcceptAwaiter(io::Uring* ring, F&& func) : UringAwaiter(ring, std::forward<F>(func)) {
         token_.op_ = Op::Accept;
-        sqe_->file_index |= IORING_FILE_INDEX_ALLOC;
     }
 };
 

@@ -14,22 +14,36 @@ enum class Op {
     Wakeup,
     Timeout,
     Socket,
+
     Accept,
     MultishotAccept,
+    MultishotAcceptRetry,
+    MultishotAcceptPending,
+    MultishotAcceptFdSender,
+    MultishotAcceptFdReceiver,
+    MultishotAcceptTaskReceiver,
+
     RingTask,
     RingFdSender,
     RingFdReceiver,
+
     Send,
+
     Receive,
     MultishotReceive,
     RegisterRingBuffer,
+
     Shutdown,
+
+    Close,
     SyncCloseDirect,
     AsyncCloseDirect,
     MainRingCloseDirectSocket,
-    Close,
+
     CancelAny,
+
     Quit,
+
     Unknown,
 };
 

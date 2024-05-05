@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "co_net/async/task.hpp"
+#include "co_net/context/context.hpp"
 #include "co_net/io/prep/prep_close.hpp"
 #include "co_net/io/prep/prep_read.hpp"
 #include "co_net/io/prep/prep_recv_in_ring_buf.hpp"
@@ -179,6 +180,18 @@ void Uring::impl_handle_msg_conn(io_uring_cqe* cqe) {
     peer_task_loop_->emplace_back(std::move(task), std::move(conn));
 
     notify_main_ring_release_fd(sys_conn_fd);
+}
+
+void Uring::impl_handle_macc_task(io_uring_cqe* cqe) {
+    Dump(), "1234";
+    auto* task_token = reinterpret_cast<msg::MultishotAcceptTaskToken*>(cqe->user_data);
+    auto func = task_token->move_out();
+    delete task_token;
+
+    for (auto fd : awaiting_direct_fd_) {
+        auto task = std::invoke(func, net::tcp::TcpConnection{ fd });
+        peer_task_loop_->enqueue(std::move(task));
+    }
 }
 
 }  // namespace net::io

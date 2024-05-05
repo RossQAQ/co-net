@@ -38,7 +38,6 @@ public:
         caller.promise().this_chain_task_->set_awaiting_handle(caller);
         token_.chain_task_ = caller.promise().this_chain_task_;
         token_.chain_task_->set_pending(true);
-        // Dump(), "Chain Task in Uring Awaiter: ", static_cast<void*>(token_.chain_task_);
         return;
     }
 
@@ -48,6 +47,20 @@ protected:
     io_uring_sqe* sqe_{ nullptr };
 
     CompletionToken token_{};
+};
+
+class PendingAwaiter {
+public:
+    bool await_ready() const noexcept { return false; }
+
+    template <typename Promise>
+    void await_suspend(std::coroutine_handle<Promise> caller) {
+        caller.promise().this_chain_task_->set_awaiting_handle(caller);
+        caller.promise().this_chain_task_->set_pending(true);
+        return;
+    }
+
+    void await_resume() noexcept {}
 };
 
 }  // namespace net::io

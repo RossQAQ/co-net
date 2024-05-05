@@ -27,10 +27,9 @@ public:
         main_task_queue_(),
         main_uring_(&main_task_queue_),
         io_buffer_(main_uring_.get()),
-        init_latch_(config::WORKERS ? config::WORKERS : std::thread::hardware_concurrency())
-    // workers_(config::WORKERS, main_uring_.fd(), init_latch_) {
-    //  init_latch_.wait();
-    {
+        init_latch_(config::WORKERS ? config::WORKERS : std::thread::hardware_concurrency()),
+        workers_(config::WORKERS, main_uring_.fd(), init_latch_) {
+        init_latch_.wait();
         this_ctx::local_task_queue = &main_task_queue_;
         this_ctx::local_uring_loop = &main_uring_;
         this_ctx::local_ring_buffer = &io_buffer_;
@@ -51,15 +50,14 @@ public:
         using namespace net::time_literals;
 
         int ret{};
-        while (!stopped_ && !ret) {
+        while (!stopped_) {
             main_task_queue_.run();
 
-            main_uring_.submit_all();
-
             if (main_task_queue_.empty()) {
-                Dump(), "Empty?";
                 break;
             }
+
+            main_uring_.submit_all();
 
             ret = main_uring_.wait_cqe_arrival_for(50_ms);
 
@@ -70,22 +68,24 @@ public:
     }
 
     void terminate() {
+        using namespace std::chrono_literals;
+
         if (!stopped_) {
             stopped_ = true;
-            // workers_.stop();
-            // main_uring_.notify_workers_to_stop(workers_.get_worker_ids());
+            workers_.stop();
+            main_uring_.notify_workers_to_stop(workers_.get_worker_ids());
             main_uring_.notify_self_quit();
             main_uring_.submit_all();
             main_uring_.wait_cqe_arrival();
+            // std::this_thread::sleep_for(5s);
             main_uring_.process_all();
         }
     }
 
     [[nodiscard]]
     int pick_worker() {
-        // current_worker_uring_idx_ = (current_worker_uring_idx_ + 1) % workers_.count();
-        // return workers_.get_uring_fd(current_worker_uring_idx_);
-        return 4;
+        current_worker_uring_idx_ = (current_worker_uring_idx_ + 1) % workers_.count();
+        return workers_.get_uring_fd(current_worker_uring_idx_);
     }
 
 private:
@@ -95,7 +95,7 @@ private:
 
     ::net::io::RingBuffer io_buffer_;
 
-    // ::net::context::Workers workers_;
+    ::net::context::Workers workers_;
 
     std::latch init_latch_;
 
@@ -132,7 +132,7 @@ inline void parallel_spawn(VoidTask&& task, Connection&& conn, Args&&... args) {
                   "Currently only support send one TcpConnection to other threads once a time");
 
     if (sys_ctx::sys_uring_loop->fd() != this_ctx::local_uring_loop->fd()) [[unlikely]] {
-        throw std::logic_error("You can noly call this function in main thread");
+        throw std::logic_error("You can only call this function in main thread");
     }
 
     conn.release();
@@ -199,21 +199,53 @@ inline void parallel_spawn(VoidTask&& task, Args&&... args) {
     sys_ctx::sys_uring_loop->submit_all();
 }
 
-// template <typename VoidTask, typename... Args>
-// async::Task<void> co_spawn_helper(VoidTask&& task, Args&&... args) {
-//     auto detail = std::invoke(task, std::forward<Args>(args)...);
-//     co_await detail;
-// }
-
 template <typename VoidTask, typename... Args>
     requires(std::is_invocable_r_v<async::Task<void>, VoidTask, Args...> && std::is_rvalue_reference_v<VoidTask &&>)
 inline void co_spawn(VoidTask&& task, Args&&... args) {
-    // auto wrapper = co_spawn_helper(std::move(task), std::forward<Args>(args)...);
-    // wrapper.resume();
-    // this_ctx::local_task_queue->enqueue(std::move(wrapper));
-    // this_ctx::local_task_queue->enqueue(std::move(wrapper));
-    // Dump(), "???";
+    // ! bug
+    // this will heap-use-after-free;
+    // currently solution is mark the root chain task passed by block on;
+    // will be sloved in future.
     this_ctx::local_task_queue->emplace_back(std::move(task), std::forward<Args>(args)...);
 }
 
 }  // namespace net::context
+
+namespace net::io {
+
+void Uring::mshot_accept_send_awaiting_fd_and_process(
+    std::function<async::Task<void>(net::tcp::TcpConnection)> func_task) {
+    for (auto fd : awaiting_direct_fd_) {
+        auto worker = sys_ctx::sys_loop->pick_worker();
+        Dump(), worker;
+
+        auto* send_fd = sys_ctx::sys_uring_loop->get_sqe();
+        auto* send_task = sys_ctx::sys_uring_loop->get_sqe();
+        auto* close_fd = sys_ctx::sys_uring_loop->get_sqe();
+
+        auto* receiver_token = new CompletionToken{};
+        receiver_token->op_ = io::Op::MultishotAcceptFdReceiver;
+
+        auto* task_token =
+            new io::msg::MultishotAcceptTaskToken{ io::Op::MultishotAcceptTaskReceiver, std::move(func_task) };
+
+        io_uring_prep_msg_ring_fd_alloc(send_fd, worker, fd, reinterpret_cast<unsigned long long>(receiver_token), 0);
+
+        io_uring_prep_msg_ring_cqe_flags(send_task,
+                                         worker,
+                                         static_cast<uint32_t>(io::msg::RingMsgType::MultiAccTask),
+                                         reinterpret_cast<unsigned long long>(task_token),
+                                         0,
+                                         NET_IORING_CQE_F_TASK);
+
+        io_uring_prep_close_direct(close_fd, fd);
+
+        send_fd->flags |= IOSQE_CQE_SKIP_SUCCESS | IOSQE_IO_LINK;
+        send_task->flags |= IOSQE_CQE_SKIP_SUCCESS | IOSQE_IO_LINK;
+        close_fd->flags |= IOSQE_CQE_SKIP_SUCCESS;
+    }
+    awaiting_direct_fd_.clear();
+    sys_ctx::sys_uring_loop->submit_all();
+}
+
+}  // namespace net::io

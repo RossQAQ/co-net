@@ -20,11 +20,12 @@ public:
             }
         }
 
-        // task_queue_.erase(
-        //     std::remove_if(task_queue_.begin(),
-        //                    task_queue_.end(),
-        //                    [](net::async::ScheduledTask& task) { return !task.valid() && !task.pending(); }),
-        //     task_queue_.end());
+        // task_queue_.erase(std::remove_if(task_queue_.begin(),
+        //                                  task_queue_.end(),
+        //                                  [](net::async::ScheduledTask& task) { return !task.valid(); }),
+        //                   task_queue_.end());
+
+        // Dump(), task_queue_.size();
     }
 
     void enqueue(net::async::Task<>&& task) { task_queue_.emplace_back(std::move(task)); }

@@ -25,11 +25,12 @@ Task<void> echo(TcpConnection conn) {
 
 Task<void> server() {
     auto tcp_listener = co_await net::tcp::TcpListener::listen_on(ip::make_addr_v4("localhost", 20589));
-    for (;;) {
-        auto client = co_await tcp_listener.accept();
-        net::context::co_spawn(&echo, std::move(client));
-        // net::context::parallel_spawn(&echo, std::move(client));
-    }
+    co_await tcp_listener.multishot_accept_then(&echo);
+    // for (;;) {
+    //     auto client = co_await tcp_listener.accept();
+    //     net::context::co_spawn(&echo, std::move(client));
+    //     net::context::parallel_spawn(&echo, std::move(client));
+    // }
 }
 
 int main() {

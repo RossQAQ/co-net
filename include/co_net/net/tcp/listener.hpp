@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "co_net/io/prep/prep_accept.hpp"
+#include "co_net/io/prep/prep_multishot_accept.hpp"
 #include "co_net/io/prep/prep_socket.hpp"
 #include "co_net/net/ip_addr.hpp"
 #include "co_net/net/socket.hpp"
@@ -38,7 +39,20 @@ public:
         }
     }
 
-    ::net::async::Task<TcpConnection> multishot_accept();
+    template <typename VoidTask, typename... Args>
+        requires(std::is_invocable_r_v<async::Task<void>, VoidTask, ::net::tcp::TcpConnection, Args...> &&
+                 std::is_rvalue_reference_v<VoidTask &&>)
+    async::Task<> multishot_accept_then(VoidTask&& task, Args&&... args) {
+        co_await ::net::io::operation::prep_multishot_accept_direct(socket_.fd());
+
+        std::function<async::Task<>(::net::tcp::TcpConnection)> func =
+            std::bind(task, std::placeholders::_1, std::forward<Args>(args)...);
+
+        for (;;) {
+            sys_ctx::sys_uring_loop->mshot_accept_send_awaiting_fd_and_process(func);
+            co_await ::net::io::PendingAwaiter{};
+        }
+    }
 
 public:
     static ::net::async::Task<TcpListener> listen_on(::net::ip::SocketAddr addr, int backlog = SOMAXCONN) {
